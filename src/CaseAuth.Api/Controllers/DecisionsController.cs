@@ -36,15 +36,20 @@ public class DecisionsController(
     [HttpPost]
     [Authorize(Roles = Roles.Supervisor)]
     public async Task<ActionResult<DecisionResponse>> Create(
-        Guid caseId, [FromBody] CreateDecisionRequest request, CancellationToken ct)
+        Guid caseId,
+        [FromHeader(Name = IdempotencyKeyHeader)] string? idempotencyKey,
+        [FromHeader(Name = IfMatchHeader)] string? ifMatch,
+        [FromBody] CreateDecisionRequest request,
+        CancellationToken ct)
     {
-        var idempotencyKey = Request.Headers[IdempotencyKeyHeader].ToString();
+        // Bound via [FromHeader] (rather than reading Request.Headers directly) so Swashbuckle
+        // documents these as required parameters in the OpenAPI spec - otherwise they're
+        // invisible to it and the generated Angular client has no typed way to send them.
         if (string.IsNullOrWhiteSpace(idempotencyKey))
         {
             throw new ValidationApiException($"The '{IdempotencyKeyHeader}' header is required.");
         }
 
-        var ifMatch = Request.Headers[IfMatchHeader].ToString();
         if (!Guid.TryParse(ifMatch, out var expectedRowVersion))
         {
             throw new ValidationApiException(

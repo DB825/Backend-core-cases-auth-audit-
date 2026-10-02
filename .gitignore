@@ -7,3 +7,5 @@ fixture-uploads/
 .vs/
 .vscode/
 *.user
+
+node_modules/

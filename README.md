@@ -15,8 +15,12 @@ This person owns the hub and the API contract that everyone else codes against.
 Backend scaffold is up: entities, EF Core (SQLite by default, Postgres via config), the
 dev-only auth handler, the case state machine, file upload, AI-review recording, and the
 idempotent/concurrency-safe decision flow are implemented and covered by integration tests.
-Not done yet: the Angular client generated from the OpenAPI spec, and a real S3 storage
-backend (`Storage:Mode=S3` intentionally throws `NotImplementedException` for now).
+The OpenAPI spec (`openapi/openapi.json`) and the generated Angular client
+(`clients/angular/`) are also in place - see `clients/angular/README.md` for how to consume it
+and `scripts/generate-client.sh` to regenerate both after a contract change.
+
+Not done yet: a real S3 storage backend (`Storage:Mode=S3` intentionally throws
+`NotImplementedException` for now), and an actual Angular frontend app consuming the client.
 
 ## Running locally
 

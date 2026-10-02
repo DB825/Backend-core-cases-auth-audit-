@@ -71,6 +71,14 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "CaseAuth API", Version = "v1" });
 
+    // Without this, Swashbuckle leaves operationId unset and the generated Angular client
+    // falls back to ugly path-derived names (e.g. apiCasesIdWithdrawPost). ControllerName is
+    // included because action names collide across controllers (several have Create/List).
+    c.CustomOperationIds(apiDesc =>
+        apiDesc.ActionDescriptor is Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor cad
+            ? $"{cad.ControllerName}_{cad.ActionName}"
+            : null);
+
     const string devUserScheme = "DevUser";
     c.AddSecurityDefinition(devUserScheme, new OpenApiSecurityScheme
     {

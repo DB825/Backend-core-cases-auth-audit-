@@ -1,0 +1,16 @@
+{
+  "name": "@caseauth/angular-client",
+  "version": "0.1.0",
+  "description": "Generated Angular HttpClient services and models for the CaseAuth API. Do not hand-edit src/ - it is regenerated from ../../openapi/openapi.json by `npm run generate` (see ../../scripts/generate-client.sh).",
+  "private": true,
+  "scripts": {
+    "generate": "ng-openapi-gen --config ng-openapi-gen.json"
+  },
+  "devDependencies": {
+    "ng-openapi-gen": "^1.1.0"
+  },
+  "peerDependencies": {
+    "@angular/core": ">=16.0.0",
+    "rxjs": ">=6.5.0"
+  }
+}
