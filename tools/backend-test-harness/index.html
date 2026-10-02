@@ -1,0 +1,579 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>CaseAuth backend tester</title>
+<style>
+  :root {
+    --bg: #0f1419;
+    --panel: #1a2029;
+    --border: #2a3340;
+    --text: #e6edf3;
+    --muted: #8b98a5;
+    --accent: #4f9cf9;
+    --ok: #3fb950;
+    --err: #f85149;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    max-width: 820px;
+    margin-inline: auto;
+  }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  p.sub { color: var(--muted); margin-top: 0; font-size: 14px; }
+  section {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+  }
+  section h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 0 0 12px; display: flex; justify-content: space-between; align-items: center; }
+  section h2 .hint { text-transform: none; letter-spacing: normal; font-size: 12px; font-weight: 400; }
+  label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; margin-top: 10px; }
+  label:first-child { margin-top: 0; }
+  input[type=text], input[type=url], input[type=number], select, textarea {
+    width: 100%;
+    padding: 8px 10px;
+    background: #0d1117;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+  }
+  textarea { resize: vertical; min-height: 56px; }
+  input[type=file] { margin-top: 4px; }
+  button {
+    margin-top: 12px;
+    margin-right: 8px;
+    padding: 8px 16px;
+    background: var(--accent);
+    color: #04121f;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button.secondary { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  button.small { padding: 4px 10px; font-size: 12px; margin-top: 0; }
+  .row { display: flex; gap: 12px; }
+  .row > div { flex: 1; }
+  .result {
+    margin-top: 12px;
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12.5px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .result.ok { background: rgba(63, 185, 80, 0.12); border: 1px solid var(--ok); }
+  .result.err { background: rgba(248, 81, 73, 0.12); border: 1px solid var(--err); }
+  .result.idle { background: transparent; border: 1px dashed var(--border); color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; background: #263142; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+  .statusbar {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 16px; margin-bottom: 16px; font-size: 13px;
+    display: flex; gap: 16px; flex-wrap: wrap; align-items: center;
+  }
+  .statusbar b { color: var(--accent); }
+  .copy-id { cursor: pointer; text-decoration: underline dotted; }
+</style>
+</head>
+<body>
+
+<h1>CaseAuth backend tester</h1>
+<p class="sub">
+  Throwaway test harness for exercising the whole case lifecycle - not the real Angular workbench.
+  Serve this folder on <code>http://localhost:4200</code> so it matches the API's CORS allowlist
+  (see README.md next to this file).
+</p>
+
+<div class="statusbar" id="statusBar">No case loaded. Create one below.</div>
+
+<section>
+  <h2>Connection</h2>
+  <div class="row">
+    <div>
+      <label for="apiBase">API base URL</label>
+      <input type="url" id="apiBase" value="http://localhost:5020" />
+    </div>
+    <div>
+      <label for="devUser">X-Dev-User</label>
+      <select id="devUser">
+        <option value="analyst1">analyst1 (FIRM-A, Analyst)</option>
+        <option value="analyst2">analyst2 (FIRM-B, Analyst)</option>
+        <option value="supervisor">supervisor (FIRM-A, Supervisor)</option>
+      </select>
+    </div>
+  </div>
+  <p class="sub" style="margin-top:8px;">
+    Pipeline actions (extract/screen/etc) need an Analyst. Decisions need the Supervisor.
+    Switching here doesn't reload anything - press a section's Refresh after switching.
+  </p>
+</section>
+
+<section>
+  <h2>Case</h2>
+  <label for="applicantName">Applicant full name (for a new case)</label>
+  <input type="text" id="applicantName" value="Jane Doe" />
+  <button id="createCaseBtn">Create new case</button>
+  <button class="secondary" id="refreshCaseBtn">Refresh</button>
+
+  <label for="caseId" style="margin-top: 16px;">Current case ID</label>
+  <input type="text" id="caseId" placeholder="paste an existing case id, or create one above" />
+  <div id="caseResult" class="result idle">No case loaded yet.</div>
+</section>
+
+<section>
+  <h2>Pipeline transitions</h2>
+  <button data-action="extract">Extract</button>
+  <button data-action="screen">Screen</button>
+  <button data-action="mark-ai-reviewed">Mark AI-reviewed</button>
+  <button data-action="request-decision">Request decision</button>
+  <button class="secondary" data-action="request-documents">Request documents (back to Uploaded)</button>
+  <div id="transitionResult" class="result idle">No transition attempted yet.</div>
+</section>
+
+<section>
+  <h2>Upload a document</h2>
+  <label for="documentType">Document type</label>
+  <select id="documentType">
+    <option>GovernmentId</option>
+    <option>ProofOfAddress</option>
+    <option>Financial</option>
+    <option>Other</option>
+  </select>
+  <label for="fileInput">File</label>
+  <input type="file" id="fileInput" />
+  <button id="uploadBtn">Upload</button>
+  <div id="uploadResult" class="result idle">Nothing uploaded yet.</div>
+
+  <h2 style="margin-top:20px;">Documents on this case <button class="secondary small" id="refreshDocsBtn">Refresh</button></h2>
+  <table id="docsTable">
+    <thead><tr><th>File</th><th>Type</th><th>Size</th><th>Content type</th><th>Uploaded</th><th></th></tr></thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<section>
+  <h2>Extracted fields <span class="hint">pick a document from the table above, or paste its id</span></h2>
+  <label for="documentIdForFields">Document ID</label>
+  <input type="text" id="documentIdForFields" placeholder="click a document above to fill this in" />
+  <div class="row">
+    <div><label for="fieldName">Field name</label><input type="text" id="fieldName" value="Address" /></div>
+    <div><label for="fieldValue">Field value</label><input type="text" id="fieldValue" value="123 Main St" /></div>
+    <div><label for="fieldConfidence">Confidence (0-1)</label><input type="number" id="fieldConfidence" value="0.92" step="0.01" min="0" max="1" /></div>
+  </div>
+  <button id="addFieldBtn">Add extracted field</button>
+  <button class="secondary" id="refreshFieldsBtn">Refresh</button>
+  <div id="fieldResult" class="result idle">No extracted fields recorded yet.</div>
+  <table id="fieldsTable">
+    <thead><tr><th>Field</th><th>Value</th><th>Confidence</th><th>Extracted</th><th></th></tr></thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<section>
+  <h2>AI reviews <span class="hint">recorded, not model-generated - see AiReviewsController</span></h2>
+  <div class="row">
+    <div><label for="aiModelName">Model name</label><input type="text" id="aiModelName" value="demo-classifier" /></div>
+    <div><label for="aiModelVersion">Model version</label><input type="text" id="aiModelVersion" value="1.0" /></div>
+    <div><label for="aiRecommendation">Recommendation</label>
+      <select id="aiRecommendation"><option>Approve</option><option>Reject</option><option>Escalate</option></select>
+    </div>
+  </div>
+  <label for="aiRationale">Rationale</label>
+  <textarea id="aiRationale">All checks passed.</textarea>
+  <button id="addAiReviewBtn">Record AI review</button>
+  <button class="secondary" id="refreshAiReviewsBtn">Refresh</button>
+  <div id="aiReviewResult" class="result idle">No AI reviews recorded yet.</div>
+  <table id="aiReviewsTable">
+    <thead><tr><th>Ver</th><th>Model</th><th>Recommendation</th><th>Rationale</th><th></th></tr></thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<section>
+  <h2>Findings <span class="hint">cite extracted-field ids above to link a finding to its source</span></h2>
+  <div class="row">
+    <div><label for="findingSeverity">Severity</label><select id="findingSeverity"><option>Info</option><option>Warning</option><option>Critical</option></select></div>
+    <div><label for="findingSource">Source</label><select id="findingSource"><option>Manual</option><option>Ai</option></select></div>
+    <div><label for="findingCode">Code</label><input type="text" id="findingCode" value="ADDRESS_MISMATCH" /></div>
+  </div>
+  <label for="findingMessage">Message</label>
+  <input type="text" id="findingMessage" value="Address differs between documents." />
+  <label for="findingSourceFieldIds">Source field IDs (comma-separated, optional)</label>
+  <input type="text" id="findingSourceFieldIds" placeholder="click a row in the extracted-fields table to append its id" />
+  <button id="addFindingBtn">Add finding</button>
+  <button class="secondary" id="refreshFindingsBtn">Refresh</button>
+  <div id="findingResult" class="result idle">No findings recorded yet.</div>
+  <table id="findingsTable">
+    <thead><tr><th>Sev</th><th>Code</th><th>Message</th><th>Source fields</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<section>
+  <h2>Decision <span class="hint">needs Supervisor and the case's current rowVersion</span></h2>
+  <div class="row">
+    <div><label for="decisionOutcome">Outcome</label><select id="decisionOutcome"><option>Approved</option><option>Rejected</option><option>Escalated</option></select></div>
+    <div><label for="decisionAiReviewId">AI review ID (optional)</label><input type="text" id="decisionAiReviewId" placeholder="click a row in AI reviews table" /></div>
+  </div>
+  <div class="row">
+    <div><label for="idempotencyKey">Idempotency-Key</label><input type="text" id="idempotencyKey" class="mono" /></div>
+    <div><label for="ifMatch">If-Match (case rowVersion)</label><input type="text" id="ifMatch" class="mono" /></div>
+  </div>
+  <button id="newIdempotencyKeyBtn" class="secondary small">New key</button>
+  <button id="syncRowVersionBtn" class="secondary small">Sync rowVersion from case</button>
+  <br/>
+  <button id="submitDecisionBtn">Submit decision</button>
+  <button class="secondary" id="refreshDecisionsBtn">Refresh list</button>
+  <p class="sub">
+    To see idempotent replay: submit once, then submit again with the <em>same</em> key - should
+    return 200 with the same decision id, not a new one. To see stale rejection: submit once
+    successfully (which changes the case's rowVersion), then submit again with the <em>old</em>
+    If-Match value - should 409.
+  </p>
+  <div id="decisionResult" class="result idle">No decision submitted yet.</div>
+  <table id="decisionsTable">
+    <thead><tr><th>Outcome</th><th>Decided by</th><th>Decided at</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<section>
+  <h2>Audit trail <button class="secondary small" id="refreshAuditBtn">Refresh</button></h2>
+  <table id="auditTable">
+    <thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Outcome</th><th>AI ver</th><th>Correlation</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+function apiBase() { return $('apiBase').value.replace(/\/$/, ''); }
+function devUser() { return $('devUser').value; }
+function currentCaseId() { return $('caseId').value.trim(); }
+
+async function api(path, options = {}) {
+  const response = await fetch(apiBase() + path, {
+    ...options,
+    headers: { 'X-Dev-User': devUser(), ...(options.headers || {}) },
+  });
+  const text = await response.text();
+  let body = null;
+  try { body = text ? JSON.parse(text) : null; } catch { body = text; }
+  return { ok: response.ok, status: response.status, body };
+}
+
+function showResult(el, result, okFormatter) {
+  el.classList.remove('idle', 'ok', 'err');
+  if (result.ok) {
+    el.classList.add('ok');
+    el.textContent = okFormatter ? okFormatter(result.body) : JSON.stringify(result.body, null, 2);
+  } else {
+    el.classList.add('err');
+    const problem = result.body || {};
+    el.textContent =
+      `HTTP ${result.status}\n` +
+      `${(problem && problem.title) || '(no title in response body)'}\n` +
+      (problem && problem.correlationId ? `correlationId: ${problem.correlationId}` : '');
+  }
+}
+
+function needCaseId(el) {
+  const id = currentCaseId();
+  if (!id) { showResult(el, { ok: false, status: 0, body: { title: 'Set a case id first (create one above).' } }); return null; }
+  return id;
+}
+
+function newUuid() {
+  return (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(16).slice(2));
+}
+
+// ---- Case -----------------------------------------------------------------
+
+// syncIfMatch defaults to false deliberately: if every action auto-refreshed If-Match to the
+// case's latest rowVersion, you could never hold a stale value in hand to demonstrate the 409
+// concurrency guard. Only explicit case loads/refreshes (and the "Sync rowVersion" button) sync
+// it; transitions and decision submissions only update the status bar's display.
+async function refreshStatusBar(syncIfMatch = false) {
+  const id = currentCaseId();
+  const bar = $('statusBar');
+  if (!id) { bar.innerHTML = 'No case loaded. Create one below.'; return; }
+  const result = await api(`/api/cases/${id}`);
+  if (!result.ok) { bar.innerHTML = `Case <span class="mono">${id}</span>: <b>not found / wrong firm</b>`; return; }
+  const c = result.body;
+  bar.innerHTML = `Case <span class="mono">${c.id}</span> &middot; firm <b>${c.firmId}</b> &middot; status <b>${c.status}</b> &middot; rowVersion <span class="mono">${c.rowVersion}</span>`;
+  if (syncIfMatch) $('ifMatch').value = c.rowVersion;
+  return c;
+}
+
+$('createCaseBtn').addEventListener('click', async () => {
+  const result = await api('/api/cases', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ applicantFullName: $('applicantName').value }),
+  });
+  showResult($('caseResult'), result, (c) => `Created case ${c.id}\nstatus: ${c.status}\nrowVersion: ${c.rowVersion}`);
+  if (result.ok) { $('caseId').value = result.body.id; $('idempotencyKey').value = newUuid(); await refreshStatusBar(true); }
+});
+
+$('refreshCaseBtn').addEventListener('click', async () => {
+  const id = needCaseId($('caseResult'));
+  if (!id) return;
+  const result = await api(`/api/cases/${id}`);
+  showResult($('caseResult'), result, (c) => `Case ${c.id}\nstatus: ${c.status}\nrowVersion: ${c.rowVersion}`);
+  await refreshStatusBar(true);
+});
+
+// Pasting an existing case id directly (not via Create) should still populate the status bar.
+$('caseId').addEventListener('change', () => refreshStatusBar(true));
+
+// ---- Pipeline transitions ---------------------------------------------------
+
+document.querySelectorAll('[data-action]').forEach((btn) => {
+  btn.addEventListener('click', async () => {
+    const id = needCaseId($('transitionResult'));
+    if (!id) return;
+    const result = await api(`/api/cases/${id}/${btn.dataset.action}`, { method: 'POST' });
+    showResult($('transitionResult'), result, (c) => `${btn.dataset.action} -> status: ${c.status}`);
+    await refreshStatusBar();
+  });
+});
+
+// ---- Upload / documents -----------------------------------------------------
+
+$('uploadBtn').addEventListener('click', async () => {
+  const id = needCaseId($('uploadResult'));
+  if (!id) return;
+  const file = $('fileInput').files[0];
+  if (!file) { showResult($('uploadResult'), { ok: false, status: 0, body: { title: 'Choose a file first.' } }); return; }
+
+  const form = new FormData();
+  form.append('documentType', $('documentType').value);
+  form.append('file', file);
+
+  const result = await api(`/api/cases/${id}/documents`, { method: 'POST', body: form });
+  showResult($('uploadResult'), result, (d) =>
+    `Uploaded "${d.fileName}"\ntype: ${d.documentType}\ncontentType: ${d.contentType}\nsizeBytes: ${d.sizeBytes}\nuploadedAt: ${d.uploadedAt}`);
+  if (result.ok) loadDocuments(id);
+});
+
+$('refreshDocsBtn').addEventListener('click', () => loadDocuments(currentCaseId()));
+
+async function loadDocuments(caseId) {
+  const tbody = $('docsTable').querySelector('tbody');
+  tbody.innerHTML = '';
+  if (!caseId) return;
+  const result = await api(`/api/cases/${caseId}/documents`);
+  if (!result.ok) return;
+  for (const d of result.body) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${d.fileName}</td><td><span class="badge">${d.documentType}</span></td>` +
+      `<td>${d.sizeBytes} B</td><td>${d.contentType}</td><td>${new Date(d.uploadedAt).toLocaleString()}</td>` +
+      `<td><button class="secondary small use-doc" data-id="${d.id}">Use</button></td>`;
+    tbody.appendChild(tr);
+  }
+  tbody.querySelectorAll('.use-doc').forEach((b) => b.addEventListener('click', () => {
+    $('documentIdForFields').value = b.dataset.id;
+    loadExtractedFields(b.dataset.id);
+  }));
+}
+
+// ---- Extracted fields --------------------------------------------------------
+
+$('addFieldBtn').addEventListener('click', async () => {
+  const docId = $('documentIdForFields').value.trim();
+  if (!docId) { showResult($('fieldResult'), { ok: false, status: 0, body: { title: 'Set a document id first (upload one above, then click Use).' } }); return; }
+  const result = await api(`/api/documents/${docId}/extracted-fields`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields: [{
+      fieldName: $('fieldName').value,
+      fieldValue: $('fieldValue').value,
+      confidence: parseFloat($('fieldConfidence').value),
+    }] }),
+  });
+  showResult($('fieldResult'), result, (fs) => `Recorded ${fs.length} field(s)`);
+  if (result.ok) loadExtractedFields(docId);
+});
+
+$('refreshFieldsBtn').addEventListener('click', () => loadExtractedFields($('documentIdForFields').value.trim()));
+
+async function loadExtractedFields(documentId) {
+  const tbody = $('fieldsTable').querySelector('tbody');
+  tbody.innerHTML = '';
+  if (!documentId) return;
+  const result = await api(`/api/documents/${documentId}/extracted-fields`);
+  if (!result.ok) return;
+  for (const f of result.body) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${f.fieldName}</td><td>${f.fieldValue}</td><td>${f.confidence ?? ''}</td>` +
+      `<td>${new Date(f.extractedAt).toLocaleString()}</td>` +
+      `<td><button class="secondary small use-field" data-id="${f.id}">Cite</button></td>`;
+    tbody.appendChild(tr);
+  }
+  tbody.querySelectorAll('.use-field').forEach((b) => b.addEventListener('click', () => {
+    const el = $('findingSourceFieldIds');
+    const ids = el.value.split(',').map((s) => s.trim()).filter(Boolean);
+    if (!ids.includes(b.dataset.id)) ids.push(b.dataset.id);
+    el.value = ids.join(', ');
+  }));
+}
+
+// ---- AI reviews ---------------------------------------------------------------
+
+$('addAiReviewBtn').addEventListener('click', async () => {
+  const id = needCaseId($('aiReviewResult'));
+  if (!id) return;
+  const result = await api(`/api/cases/${id}/ai-reviews`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      modelName: $('aiModelName').value,
+      modelVersion: $('aiModelVersion').value,
+      recommendation: $('aiRecommendation').value,
+      rationale: $('aiRationale').value,
+    }),
+  });
+  showResult($('aiReviewResult'), result, (r) => `Recorded AI review v${r.version} (${r.recommendation})`);
+  if (result.ok) loadAiReviews(id);
+});
+
+$('refreshAiReviewsBtn').addEventListener('click', () => loadAiReviews(currentCaseId()));
+
+async function loadAiReviews(caseId) {
+  const tbody = $('aiReviewsTable').querySelector('tbody');
+  tbody.innerHTML = '';
+  if (!caseId) return;
+  const result = await api(`/api/cases/${caseId}/ai-reviews`);
+  if (!result.ok) return;
+  for (const r of result.body) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${r.version}</td><td>${r.modelName}@${r.modelVersion}</td>` +
+      `<td><span class="badge">${r.recommendation}</span></td><td>${r.rationale}</td>` +
+      `<td><button class="secondary small use-review" data-id="${r.id}">Use</button></td>`;
+    tbody.appendChild(tr);
+  }
+  tbody.querySelectorAll('.use-review').forEach((b) => b.addEventListener('click', () => {
+    $('decisionAiReviewId').value = b.dataset.id;
+  }));
+}
+
+// ---- Findings -------------------------------------------------------------
+
+$('addFindingBtn').addEventListener('click', async () => {
+  const id = needCaseId($('findingResult'));
+  if (!id) return;
+  const sourceFieldIds = $('findingSourceFieldIds').value.split(',').map((s) => s.trim()).filter(Boolean);
+  const result = await api(`/api/cases/${id}/findings`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      severity: $('findingSeverity').value,
+      source: $('findingSource').value,
+      code: $('findingCode').value,
+      message: $('findingMessage').value,
+      sourceFieldIds: sourceFieldIds.length ? sourceFieldIds : null,
+    }),
+  });
+  showResult($('findingResult'), result, (f) => `Recorded finding ${f.code} (${f.sourceFieldIds.length} source field(s))`);
+  if (result.ok) loadFindings(id);
+});
+
+$('refreshFindingsBtn').addEventListener('click', () => loadFindings(currentCaseId()));
+
+async function loadFindings(caseId) {
+  const tbody = $('findingsTable').querySelector('tbody');
+  tbody.innerHTML = '';
+  if (!caseId) return;
+  const result = await api(`/api/cases/${caseId}/findings`);
+  if (!result.ok) return;
+  for (const f of result.body) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><span class="badge">${f.severity}</span></td><td>${f.code}</td><td>${f.message}</td>` +
+      `<td class="mono">${f.sourceFieldIds.join(', ') || '-'}</td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+// ---- Decisions --------------------------------------------------------------
+
+$('idempotencyKey').value = newUuid();
+$('newIdempotencyKeyBtn').addEventListener('click', () => { $('idempotencyKey').value = newUuid(); });
+$('syncRowVersionBtn').addEventListener('click', () => refreshStatusBar(true));
+
+$('submitDecisionBtn').addEventListener('click', async () => {
+  const id = needCaseId($('decisionResult'));
+  if (!id) return;
+  const aiReviewId = $('decisionAiReviewId').value.trim();
+  const result = await api(`/api/cases/${id}/decisions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Idempotency-Key': $('idempotencyKey').value,
+      'If-Match': $('ifMatch').value,
+    },
+    body: JSON.stringify({
+      outcome: $('decisionOutcome').value,
+      aiReviewId: aiReviewId || null,
+    }),
+  });
+  showResult($('decisionResult'), result, (d) => `${result.status === 200 ? 'Replayed existing' : 'Created new'} decision: ${d.outcome} (id ${d.id})`);
+  await refreshStatusBar();
+  if (result.ok) loadDecisions(id);
+});
+
+$('refreshDecisionsBtn').addEventListener('click', () => loadDecisions(currentCaseId()));
+
+async function loadDecisions(caseId) {
+  const tbody = $('decisionsTable').querySelector('tbody');
+  tbody.innerHTML = '';
+  if (!caseId) return;
+  const result = await api(`/api/cases/${caseId}/decisions`);
+  if (!result.ok) return;
+  for (const d of result.body) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><span class="badge">${d.outcome}</span></td><td>${d.decidedByUserId}</td><td>${new Date(d.decidedAt).toLocaleString()}</td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+// ---- Audit trail --------------------------------------------------------------
+
+$('refreshAuditBtn').addEventListener('click', () => loadAuditEvents(currentCaseId()));
+
+async function loadAuditEvents(caseId) {
+  const tbody = $('auditTable').querySelector('tbody');
+  tbody.innerHTML = '';
+  if (!caseId) return;
+  const result = await api(`/api/cases/${caseId}/audit-events`);
+  if (!result.ok) return;
+  for (const e of result.body) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${new Date(e.timestamp).toLocaleTimeString()}</td><td>${e.actorUsername}</td>` +
+      `<td>${e.action}</td><td><span class="badge">${e.outcome}</span></td><td>${e.aiReviewVersion ?? ''}</td>` +
+      `<td class="mono">${e.correlationId.slice(0, 8)}…</td>`;
+    tbody.appendChild(tr);
+  }
+}
+</script>
+
+</body>
+</html>
