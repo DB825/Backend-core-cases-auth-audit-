@@ -146,6 +146,31 @@ namespace CaseAuth.Api.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "ProcessingJobs",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    CaseId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    JobType = table.Column<string>(type: "TEXT", nullable: false),
+                    Status = table.Column<string>(type: "TEXT", nullable: false),
+                    Attempts = table.Column<int>(type: "INTEGER", nullable: false),
+                    Error = table.Column<string>(type: "TEXT", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    StartedAt = table.Column<DateTime>(type: "TEXT", nullable: true),
+                    CompletedAt = table.Column<DateTime>(type: "TEXT", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ProcessingJobs", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ProcessingJobs_Cases_CaseId",
+                        column: x => x.CaseId,
+                        principalTable: "Cases",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Decisions",
                 columns: table => new
                 {
@@ -281,6 +306,16 @@ namespace CaseAuth.Api.Migrations
                 name: "IX_Findings_CaseId",
                 table: "Findings",
                 column: "CaseId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ProcessingJobs_CaseId",
+                table: "ProcessingJobs",
+                column: "CaseId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ProcessingJobs_Status",
+                table: "ProcessingJobs",
+                column: "Status");
         }
 
         /// <inheritdoc />
@@ -294,6 +329,9 @@ namespace CaseAuth.Api.Migrations
 
             migrationBuilder.DropTable(
                 name: "ExtractedFieldFinding");
+
+            migrationBuilder.DropTable(
+                name: "ProcessingJobs");
 
             migrationBuilder.DropTable(
                 name: "AiReviews");

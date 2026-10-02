@@ -36,6 +36,36 @@ in one call, so Teammate 4's AI reviewer doesn't need to call `/documents`, then
 `/extracted-fields` per document, then `/findings`, and stitch the result together itself. Per
 the architecture doc, this is deliberately *all* the reviewer gets - no raw document text.
 
+A background pipeline scaffold also exists (`Pipeline/`, `Entities/ProcessingJob.cs`,
+`Controllers/PipelineJobsController.cs`): `POST /api/cases/{caseId}/pipeline-jobs` with
+`{"jobType": "Extract"|"Screen"|"AiReview"}` enqueues a row in the `ProcessingJobs` queue table,
+and `PipelineBackgroundService` (a `BackgroundService` polling every `Pipeline:PollIntervalSeconds`,
+default 2s) picks it up, runs it through `PipelineJobProcessor`, and performs the matching
+`CaseStateMachine` transition + audit event atomically - the same guarantee the manual HTTP
+endpoints give, just asynchronous. `GET /api/cases/{caseId}/pipeline-jobs` polls a job's status
+(`Pending → Processing → Completed`/`Failed`, with `error` set on failure).
+
+This is **additive, not a replacement**: `CasesController`'s existing `/extract`, `/screen`,
+`/mark-ai-reviewed` endpoints are untouched and still transition synchronously - useful for
+manual testing/demo override. The queue path exists so Teammates 1/3/4 have somewhere to plug
+in real work. Three provisional interfaces in `Pipeline/` stand in for their modules, exactly
+the `IFileStorageService`-style swap-via-DI pattern already used for storage:
+
+- `IDocumentExtractor` (Teammate 1: `TextractExtractor`/`FixtureExtractor`) - registered stub
+  (`FixtureDocumentExtractor`) returns no fields.
+- `IScreeningService` (Teammate 3: the rules engine) - registered stub
+  (`FixtureScreeningService`) returns no findings.
+- `IAiReviewer` (Teammate 4: `BedrockReviewer`/`DeterministicReviewer`) - registered stub
+  (`DeterministicAiReviewer`) recommends `Escalate`, never `Approve`, so a missing/misconfigured
+  reviewer can never look like a clean approval.
+
+**These interface signatures are guesses** at what each teammate's real implementation needs -
+expect them to change once Teammates 1/3/4 are actually building against them. Verified by
+running the real API (not just the test suite) and watching an enqueued job get picked up and
+complete within one poll interval, including the failure path (enqueuing a job illegal for the
+case's current status ends up `Failed` with the state machine's error message, case status
+unchanged - no crash, no corrupted state).
+
 Not done yet: a real S3 storage backend (`Storage:Mode=S3` intentionally throws
 `NotImplementedException` for now), and an actual Angular frontend app consuming the client.
 `AiReview`'s shape (`modelName`/`modelVersion`/`recommendation`/`rationale`) is also simpler
