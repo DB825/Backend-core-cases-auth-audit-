@@ -47,6 +47,8 @@ public record CreateFindingRequest(
     [Required] FindingSource Source,
     [Required, MaxLength(100)] string Code,
     [Required, MaxLength(2000)] string Message,
+    // Teammate 3's weighted-sum rule score, when this finding came from a scored rule.
+    [Range(0, 1)] double? Score,
     // The ExtractedField row(s) this finding was computed from - e.g. a cross-document address
     // mismatch cites one field from each document. May be empty for findings that aren't tied
     // to specific fields (e.g. "missing required document").
@@ -58,11 +60,12 @@ public record FindingResponse(
     FindingSource Source,
     string Code,
     string Message,
+    double? Score,
     List<Guid> SourceFieldIds,
     DateTime CreatedAt)
 {
     public static FindingResponse From(Finding f) => new(
-        f.Id, f.Severity, f.Source, f.Code, f.Message, f.SourceFields.Select(sf => sf.Id).ToList(), f.CreatedAt);
+        f.Id, f.Severity, f.Source, f.Code, f.Message, f.Score, f.SourceFields.Select(sf => sf.Id).ToList(), f.CreatedAt);
 }
 
 public record MeResponse(string UserId, string Username, string FirmId, string Role);

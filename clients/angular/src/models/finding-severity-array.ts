@@ -7,7 +7,7 @@ import { FindingSeverity } from './finding-severity';
  * Each possible value of `FindingSeverity`
  */
 export const FINDING_SEVERITY: FindingSeverity[] = [
-  'Info',
-  'Warning',
-  'Critical'
+  'Low',
+  'Medium',
+  'High'
 ];

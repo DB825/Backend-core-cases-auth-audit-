@@ -37,6 +37,7 @@ public class FindingsController(CaseAuthDbContext db, ICaseAccessor caseAccessor
             Source = request.Source,
             Code = request.Code,
             Message = request.Message,
+            Score = request.Score,
         };
 
         if (request.SourceFieldIds is { Count: > 0 } sourceFieldIds)

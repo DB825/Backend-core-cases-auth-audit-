@@ -5,6 +5,47 @@
     "version": "v1"
   },
   "paths": {
+    "/api/cases/{caseId}/ai-review-input": {
+      "get": {
+        "tags": [
+          "AiReviewInput"
+        ],
+        "operationId": "AiReviewInput_Get",
+        "parameters": [
+          {
+            "name": "caseId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiReviewInputResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiReviewInputResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiReviewInputResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/cases/{caseId}/ai-reviews": {
       "get": {
         "tags": [
@@ -998,6 +1039,94 @@
         ],
         "type": "string"
       },
+      "AiReviewInputFieldResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "documentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "documentType": {
+            "$ref": "#/components/schemas/DocumentType"
+          },
+          "fieldName": {
+            "type": "string",
+            "nullable": true
+          },
+          "fieldValue": {
+            "type": "string",
+            "nullable": true
+          },
+          "confidence": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "AiReviewInputFindingResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string",
+            "nullable": true
+          },
+          "severity": {
+            "$ref": "#/components/schemas/FindingSeverity"
+          },
+          "score": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "sourceFieldIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "AiReviewInputResponse": {
+        "type": "object",
+        "properties": {
+          "caseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiReviewInputFieldResponse"
+            },
+            "nullable": true
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiReviewInputFindingResponse"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "AiReviewResponse": {
         "type": "object",
         "properties": {
@@ -1216,6 +1345,11 @@
             "type": "string",
             "nullable": true
           },
+          "score": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
           "sourceFieldIds": {
             "type": "array",
             "items": {
@@ -1374,6 +1508,11 @@
             "type": "string",
             "nullable": true
           },
+          "score": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
           "sourceFieldIds": {
             "type": "array",
             "items": {
@@ -1391,9 +1530,9 @@
       },
       "FindingSeverity": {
         "enum": [
-          "Info",
-          "Warning",
-          "Critical"
+          "Low",
+          "Medium",
+          "High"
         ],
         "type": "string"
       },

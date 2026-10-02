@@ -131,6 +131,7 @@ namespace CaseAuth.Api.Migrations
                     Source = table.Column<string>(type: "TEXT", nullable: false),
                     Code = table.Column<string>(type: "TEXT", nullable: false),
                     Message = table.Column<string>(type: "TEXT", nullable: false),
+                    Score = table.Column<double>(type: "REAL", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>

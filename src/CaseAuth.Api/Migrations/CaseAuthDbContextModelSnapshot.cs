@@ -307,6 +307,9 @@ namespace CaseAuth.Api.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<double?>("Score")
+                        .HasColumnType("REAL");
+
                     b.Property<string>("Severity")
                         .IsRequired()
                         .HasColumnType("TEXT");

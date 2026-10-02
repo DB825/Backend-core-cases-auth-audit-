@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CaseAuth.Api.Migrations
 {
     [DbContext(typeof(CaseAuthDbContext))]
-    [Migration("20261002180159_InitialCreate")]
+    [Migration("20261002210545_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -309,6 +309,9 @@ namespace CaseAuth.Api.Migrations
                     b.Property<string>("Message")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<double?>("Score")
+                        .HasColumnType("REAL");
 
                     b.Property<string>("Severity")
                         .IsRequired()

@@ -26,6 +26,16 @@ decision. `Finding` also links back to the `ExtractedField` row(s) it was comput
 many-to-many, since a cross-document mismatch cites a field from each document) - needed for
 Teammate 3's screening engine and acceptance criterion #1.
 
+`Finding` also has a `Score` (nullable double, Teammate 3's weighted-sum rule score) and uses
+`FindingSeverity: Low/Medium/High` - matching the vocabulary Teammates 3 and 4 are building
+against, not the `Info/Warning/Critical` this started as.
+
+`GET /api/cases/{caseId}/ai-review-input` assembles extracted fields (across every document on
+the case, labeled with their document type) and findings (with severity/score/source-field-ids)
+in one call, so Teammate 4's AI reviewer doesn't need to call `/documents`, then
+`/extracted-fields` per document, then `/findings`, and stitch the result together itself. Per
+the architecture doc, this is deliberately *all* the reviewer gets - no raw document text.
+
 Not done yet: a real S3 storage backend (`Storage:Mode=S3` intentionally throws
 `NotImplementedException` for now), and an actual Angular frontend app consuming the client.
 `AiReview`'s shape (`modelName`/`modelVersion`/`recommendation`/`rationale`) is also simpler

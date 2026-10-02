@@ -22,11 +22,13 @@ public enum DocumentType
     Other,
 }
 
+// Low/Medium/High (not Info/Warning/Critical) to match the vocabulary Teammate 3's screening
+// engine and Teammate 4's AI reviewer are built against.
 public enum FindingSeverity
 {
-    Info,
-    Warning,
-    Critical,
+    Low,
+    Medium,
+    High,
 }
 
 public enum FindingSource

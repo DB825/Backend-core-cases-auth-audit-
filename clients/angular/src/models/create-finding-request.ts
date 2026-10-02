@@ -6,6 +6,7 @@ import { FindingSource } from '../models/finding-source';
 export interface CreateFindingRequest {
   code?: string | null;
   message?: string | null;
+  score?: number | null;
   severity?: FindingSeverity;
   source?: FindingSource;
   sourceFieldIds?: Array<string> | null;

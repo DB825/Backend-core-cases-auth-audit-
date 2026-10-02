@@ -121,12 +121,46 @@ public class CaseAuthApiTests(ApiFactory factory) : IClassFixture<ApiFactory>
         var fields = (await fieldResponse.Content.ReadFromJsonAsync<List<ExtractedFieldResponse>>(JsonOptions))!;
 
         var findingResponse = await analyst.PostAsJsonAsync($"/api/cases/{c.Id}/findings",
-            new CreateFindingRequest(FindingSeverity.Warning, FindingSource.Manual, "ADDRESS_MISMATCH",
-                "Address differs from the application.", [fields[0].Id]));
+            new CreateFindingRequest(FindingSeverity.Medium, FindingSource.Manual, "ADDRESS_MISMATCH",
+                "Address differs from the application.", 0.31, [fields[0].Id]));
         var finding = (await findingResponse.Content.ReadFromJsonAsync<FindingResponse>(JsonOptions))!;
 
         Assert.Equal(HttpStatusCode.Created, findingResponse.StatusCode);
         Assert.Equal([fields[0].Id], finding.SourceFieldIds);
+        Assert.Equal(0.31, finding.Score);
+    }
+
+    [Fact]
+    public async Task AiReviewInput_CombinesExtractedFieldsAndFindingsForTheCase()
+    {
+        var analyst = ClientFor("analyst1");
+        var created = await analyst.PostAsJsonAsync("/api/cases", new CreateCaseRequest("Jane Doe", null, null, null));
+        var c = (await created.Content.ReadFromJsonAsync<CaseResponse>(JsonOptions))!;
+
+        var pdfPart = new ByteArrayContent("%PDF-1.4 fixture"u8.ToArray());
+        pdfPart.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/pdf");
+        using var fileContent = new MultipartFormDataContent
+        {
+            { new StringContent("GovernmentId"), "documentType" },
+            { pdfPart, "file", "id.pdf" },
+        };
+        var uploadResponse = await analyst.PostAsync($"/api/cases/{c.Id}/documents", fileContent);
+        var document = (await uploadResponse.Content.ReadFromJsonAsync<DocumentResponse>(JsonOptions))!;
+
+        var fieldResponse = await analyst.PostAsJsonAsync($"/api/documents/{document.Id}/extracted-fields",
+            new CreateExtractedFieldsRequest([new ExtractedFieldInput("full_name", "John Smyth", 0.97)]));
+        var fields = (await fieldResponse.Content.ReadFromJsonAsync<List<ExtractedFieldResponse>>(JsonOptions))!;
+
+        await analyst.PostAsJsonAsync($"/api/cases/{c.Id}/findings",
+            new CreateFindingRequest(FindingSeverity.High, FindingSource.Manual, "NAME_MISMATCH",
+                "Name on ID differs from application.", 0.89, [fields[0].Id]));
+
+        var inputResponse = await analyst.GetAsync($"/api/cases/{c.Id}/ai-review-input");
+        var input = (await inputResponse.Content.ReadFromJsonAsync<AiReviewInputResponse>(JsonOptions))!;
+
+        Assert.Equal(HttpStatusCode.OK, inputResponse.StatusCode);
+        Assert.Single(input.Fields, f => f.Id == fields[0].Id && f.DocumentType == DocumentType.GovernmentId);
+        Assert.Single(input.Findings, f => f.Code == "NAME_MISMATCH" && f.Score == 0.89 && f.SourceFieldIds.Contains(fields[0].Id));
     }
 
     [Fact]
