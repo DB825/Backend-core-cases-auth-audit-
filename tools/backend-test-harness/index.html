@@ -149,6 +149,30 @@
 </section>
 
 <section>
+  <h2>Pipeline jobs <span class="hint">the background queue, as an alternative to clicking the buttons above</span></h2>
+  <p class="sub">
+    Enqueues a row instead of running synchronously - PipelineBackgroundService (polling every
+    <code>Pipeline:PollIntervalSeconds</code>, default 2s) picks it up and does the same
+    transition + audit event the manual buttons above do. The table below auto-refreshes every
+    second while any job is Pending/Processing, so you can watch it happen without re-clicking
+    Refresh.
+  </p>
+  <div class="row">
+    <div>
+      <label for="pipelineJobType">Job type</label>
+      <select id="pipelineJobType"><option>Extract</option><option>Screen</option><option>AiReview</option></select>
+    </div>
+  </div>
+  <button id="enqueueJobBtn">Enqueue</button>
+  <button class="secondary" id="refreshPipelineJobsBtn">Refresh</button>
+  <div id="pipelineJobResult" class="result idle">No job enqueued yet.</div>
+  <table id="pipelineJobsTable">
+    <thead><tr><th>Type</th><th>Status</th><th>Attempts</th><th>Error</th><th>Created</th><th>Completed</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<section>
   <h2>Upload a document</h2>
   <label for="documentType">Document type</label>
   <select id="documentType">
@@ -210,19 +234,21 @@
 <section>
   <h2>Findings <span class="hint">cite extracted-field ids above to link a finding to its source</span></h2>
   <div class="row">
-    <div><label for="findingSeverity">Severity</label><select id="findingSeverity"><option>Info</option><option>Warning</option><option>Critical</option></select></div>
+    <div><label for="findingSeverity">Severity</label><select id="findingSeverity"><option>Low</option><option selected>Medium</option><option>High</option></select></div>
     <div><label for="findingSource">Source</label><select id="findingSource"><option>Manual</option><option>Ai</option></select></div>
     <div><label for="findingCode">Code</label><input type="text" id="findingCode" value="ADDRESS_MISMATCH" /></div>
   </div>
-  <label for="findingMessage">Message</label>
-  <input type="text" id="findingMessage" value="Address differs between documents." />
+  <div class="row">
+    <div style="flex:3"><label for="findingMessage">Message</label><input type="text" id="findingMessage" value="Address differs between documents." /></div>
+    <div><label for="findingScore">Score (0-1, optional)</label><input type="number" id="findingScore" value="0.31" step="0.01" min="0" max="1" /></div>
+  </div>
   <label for="findingSourceFieldIds">Source field IDs (comma-separated, optional)</label>
   <input type="text" id="findingSourceFieldIds" placeholder="click a row in the extracted-fields table to append its id" />
   <button id="addFindingBtn">Add finding</button>
   <button class="secondary" id="refreshFindingsBtn">Refresh</button>
   <div id="findingResult" class="result idle">No findings recorded yet.</div>
   <table id="findingsTable">
-    <thead><tr><th>Sev</th><th>Code</th><th>Message</th><th>Source fields</th></tr></thead>
+    <thead><tr><th>Sev</th><th>Code</th><th>Message</th><th>Score</th><th>Source fields</th></tr></thead>
     <tbody></tbody>
   </table>
 </section>
@@ -331,7 +357,12 @@ $('createCaseBtn').addEventListener('click', async () => {
     body: JSON.stringify({ applicantFullName: $('applicantName').value }),
   });
   showResult($('caseResult'), result, (c) => `Created case ${c.id}\nstatus: ${c.status}\nrowVersion: ${c.rowVersion}`);
-  if (result.ok) { $('caseId').value = result.body.id; $('idempotencyKey').value = newUuid(); await refreshStatusBar(true); }
+  if (result.ok) {
+    stopPipelinePolling();
+    $('caseId').value = result.body.id;
+    $('idempotencyKey').value = newUuid();
+    await refreshStatusBar(true);
+  }
 });
 
 $('refreshCaseBtn').addEventListener('click', async () => {
@@ -343,7 +374,10 @@ $('refreshCaseBtn').addEventListener('click', async () => {
 });
 
 // Pasting an existing case id directly (not via Create) should still populate the status bar.
-$('caseId').addEventListener('change', () => refreshStatusBar(true));
+$('caseId').addEventListener('change', () => {
+  stopPipelinePolling(); // avoid polling the previous case's jobs after switching
+  refreshStatusBar(true);
+});
 
 // ---- Pipeline transitions ---------------------------------------------------
 
@@ -356,6 +390,73 @@ document.querySelectorAll('[data-action]').forEach((btn) => {
     await refreshStatusBar();
   });
 });
+
+// ---- Pipeline jobs (background queue) ---------------------------------------
+
+let pipelinePollTimer = null;
+
+function stopPipelinePolling() {
+  if (pipelinePollTimer) {
+    clearInterval(pipelinePollTimer);
+    pipelinePollTimer = null;
+  }
+}
+
+// Polls every second only while something is still Pending/Processing, and stops itself once
+// everything's terminal - this is what makes "enqueue, then watch it happen" possible without
+// manually mashing Refresh.
+function startPipelinePolling(caseId) {
+  stopPipelinePolling();
+  pipelinePollTimer = setInterval(async () => {
+    const stillRunning = await loadPipelineJobs(caseId);
+    if (!stillRunning) {
+      stopPipelinePolling();
+      await refreshStatusBar(); // the job may have just transitioned the case
+    }
+  }, 1000);
+}
+
+$('enqueueJobBtn').addEventListener('click', async () => {
+  const id = needCaseId($('pipelineJobResult'));
+  if (!id) return;
+  const result = await api(`/api/cases/${id}/pipeline-jobs`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jobType: $('pipelineJobType').value }),
+  });
+  showResult($('pipelineJobResult'), result, (j) => `Enqueued ${j.jobType} job (status: ${j.status})`);
+  if (result.ok) {
+    await loadPipelineJobs(id);
+    startPipelinePolling(id);
+  }
+});
+
+$('refreshPipelineJobsBtn').addEventListener('click', () => loadPipelineJobs(currentCaseId()));
+
+// Returns true if any job for this case is still Pending/Processing, so the poller knows
+// whether to keep going.
+async function loadPipelineJobs(caseId) {
+  const tbody = $('pipelineJobsTable').querySelector('tbody');
+  tbody.innerHTML = '';
+  if (!caseId) return false;
+  const result = await api(`/api/cases/${caseId}/pipeline-jobs`);
+  if (!result.ok) return false;
+
+  let stillRunning = false;
+  for (const j of result.body) {
+    if (j.status === 'Pending' || j.status === 'Processing') stillRunning = true;
+    const badgeStyle = j.status === 'Completed' ? 'background:rgba(63,185,80,.25)'
+      : j.status === 'Failed' ? 'background:rgba(248,81,73,.25)' : '';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><span class="badge">${j.jobType}</span></td>` +
+      `<td><span class="badge" style="${badgeStyle}">${j.status}</span></td>` +
+      `<td>${j.attempts}</td><td class="mono">${j.error ?? ''}</td>` +
+      `<td>${new Date(j.createdAt).toLocaleTimeString()}</td>` +
+      `<td>${j.completedAt ? new Date(j.completedAt).toLocaleTimeString() : ''}</td>`;
+    tbody.appendChild(tr);
+  }
+  return stillRunning;
+}
 
 // ---- Upload / documents -----------------------------------------------------
 
@@ -490,6 +591,7 @@ $('addFindingBtn').addEventListener('click', async () => {
       source: $('findingSource').value,
       code: $('findingCode').value,
       message: $('findingMessage').value,
+      score: $('findingScore').value === '' ? null : parseFloat($('findingScore').value),
       sourceFieldIds: sourceFieldIds.length ? sourceFieldIds : null,
     }),
   });
@@ -508,7 +610,7 @@ async function loadFindings(caseId) {
   for (const f of result.body) {
     const tr = document.createElement('tr');
     tr.innerHTML = `<td><span class="badge">${f.severity}</span></td><td>${f.code}</td><td>${f.message}</td>` +
-      `<td class="mono">${f.sourceFieldIds.join(', ') || '-'}</td>`;
+      `<td>${f.score ?? ''}</td><td class="mono">${f.sourceFieldIds.join(', ') || '-'}</td>`;
     tbody.appendChild(tr);
   }
 }

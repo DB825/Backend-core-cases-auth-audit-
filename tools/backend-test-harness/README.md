@@ -35,12 +35,24 @@ A sticky status bar at the top always shows the current case's id, firm, status 
 - **Case** - create a case, or paste an existing id.
 - **Pipeline transitions** - buttons for `extract` / `screen` / `mark-ai-reviewed` /
   `request-decision` / `request-documents`, i.e. the state machine in
-  `Services/CaseStateMachine.cs`.
+  `Services/CaseStateMachine.cs`. These run **synchronously** - click one, the case transitions
+  immediately in the response.
+- **Pipeline jobs** - the asynchronous alternative: `POST /api/cases/{caseId}/pipeline-jobs`
+  with a job type (`Extract`/`Screen`/`AiReview`) enqueues a row instead of running inline.
+  `PipelineBackgroundService` picks it up on its own schedule and performs the same transition.
+  Pick a job type, click **Enqueue**, and watch the table: it auto-refreshes every second while
+  anything is `Pending`/`Processing`, so you see the row flip to `Completed` (or `Failed`, with
+  the reason in its `error` column) without touching Refresh again - then check the status bar
+  at the top, which updates once polling stops, to confirm the case itself transitioned. Useful
+  for seeing the queue work live, or for demoing "nobody clicked a button, the background worker
+  did this" - everything it shows is also covered by `PipelineJobTests.cs`, so this is for
+  interactive/demo use, not new coverage.
 - **Upload a document** - `POST /api/cases/{caseId}/documents`, with the document list below it.
 - **Extracted fields** - add fields to a document (click "Use" on a document row to target it).
 - **AI reviews** - record a review; click "Use" on a row to reference its id from Decision.
-- **Findings** - create a finding; click "Cite" on an extracted-field row to append its id to
-  `sourceFieldIds`, so you can see a finding actually link back to the field it came from.
+- **Findings** - create a finding (severity is `Low`/`Medium`/`High`, with an optional
+  `score`); click "Cite" on an extracted-field row to append its id to `sourceFieldIds`, so you
+  can see a finding actually link back to the field it came from.
 - **Decision** - the idempotency-key + `If-Match` flow. Two guided scenarios:
   - **Replay:** submit, then submit again with the *same* Idempotency-Key -> 200 with the same
     decision id, not a new one.
