@@ -7,11 +7,12 @@ import { CaseStatus } from './case-status';
  * Each possible value of `CaseStatus`
  */
 export const CASE_STATUS: CaseStatus[] = [
-  'Draft',
-  'Submitted',
-  'UnderReview',
-  'PendingDecision',
+  'Uploaded',
+  'Extracted',
+  'Screened',
+  'AiReviewed',
+  'AwaitingDecision',
   'Approved',
   'Rejected',
-  'Withdrawn'
+  'Escalated'
 ];

@@ -12,7 +12,7 @@ public class Case
     public Guid ApplicantId { get; set; }
     public Applicant? Applicant { get; set; }
 
-    public CaseStatus Status { get; set; } = CaseStatus.Draft;
+    public CaseStatus Status { get; set; } = CaseStatus.Uploaded;
 
     public required string CreatedByUserId { get; set; }
 

@@ -9,18 +9,18 @@ import { RequestBuilder } from '../../request-builder';
 
 import { CaseResponse } from '../../models/case-response';
 
-export interface CasesStartReview$Json$Params {
+export interface CasesMarkScreened$Plain$Params {
   id: string;
 }
 
-export function casesStartReview$Json(http: HttpClient, rootUrl: string, params: CasesStartReview$Json$Params, context?: HttpContext): Observable<StrictHttpResponse<CaseResponse>> {
-  const rb = new RequestBuilder(rootUrl, casesStartReview$Json.PATH, 'post');
+export function casesMarkScreened$Plain(http: HttpClient, rootUrl: string, params: CasesMarkScreened$Plain$Params, context?: HttpContext): Observable<StrictHttpResponse<CaseResponse>> {
+  const rb = new RequestBuilder(rootUrl, casesMarkScreened$Plain.PATH, 'post');
   if (params) {
     rb.path('id', params.id, {});
   }
 
   return http.request(
-    rb.build({ responseType: 'json', accept: 'text/json', context })
+    rb.build({ responseType: 'text', accept: 'text/plain', context })
   ).pipe(
     filter((r: any): r is HttpResponse<any> => r instanceof HttpResponse),
     map((r: HttpResponse<any>) => {
@@ -29,4 +29,4 @@ export function casesStartReview$Json(http: HttpClient, rootUrl: string, params:
   );
 }
 
-casesStartReview$Json.PATH = '/api/cases/{id}/start-review';
+casesMarkScreened$Plain.PATH = '/api/cases/{id}/screen';

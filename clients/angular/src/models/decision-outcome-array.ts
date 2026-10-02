@@ -8,5 +8,6 @@ import { DecisionOutcome } from './decision-outcome';
  */
 export const DECISION_OUTCOME: DecisionOutcome[] = [
   'Approved',
-  'Rejected'
+  'Rejected',
+  'Escalated'
 ];

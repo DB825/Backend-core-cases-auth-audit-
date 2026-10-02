@@ -79,10 +79,10 @@ public class DecisionsController(
                 "The case has been modified since it was loaded. Reload it and retry with its current RowVersion.");
         }
 
-        if (c.Status != CaseStatus.PendingDecision)
+        if (c.Status != CaseStatus.AwaitingDecision)
         {
             throw new ConflictApiException(
-                $"A decision can only be recorded while the case is PendingDecision (current status: {c.Status}).");
+                $"A decision can only be recorded while the case is AwaitingDecision (current status: {c.Status}).");
         }
 
         int? aiReviewVersion = null;
@@ -97,7 +97,13 @@ public class DecisionsController(
             aiReviewVersion = aiReview.Version;
         }
 
-        c.Status = request.Outcome == DecisionOutcome.Approved ? CaseStatus.Approved : CaseStatus.Rejected;
+        c.Status = request.Outcome switch
+        {
+            DecisionOutcome.Approved => CaseStatus.Approved,
+            DecisionOutcome.Rejected => CaseStatus.Rejected,
+            DecisionOutcome.Escalated => CaseStatus.Escalated,
+            _ => throw new ValidationApiException($"Unknown decision outcome '{request.Outcome}'."),
+        };
 
         var decision = new Decision
         {
@@ -109,11 +115,7 @@ public class DecisionsController(
         };
         db.Decisions.Add(decision);
 
-        audit.Record(
-            db, c.Id,
-            request.Outcome == DecisionOutcome.Approved ? "Decision.Approved" : "Decision.Rejected",
-            AuditOutcome.Success,
-            aiReviewVersion: aiReviewVersion);
+        audit.Record(db, c.Id, $"Decision.{request.Outcome}", AuditOutcome.Success, aiReviewVersion: aiReviewVersion);
 
         try
         {

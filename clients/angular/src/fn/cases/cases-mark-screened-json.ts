@@ -9,12 +9,12 @@ import { RequestBuilder } from '../../request-builder';
 
 import { CaseResponse } from '../../models/case-response';
 
-export interface CasesWithdraw$Json$Params {
+export interface CasesMarkScreened$Json$Params {
   id: string;
 }
 
-export function casesWithdraw$Json(http: HttpClient, rootUrl: string, params: CasesWithdraw$Json$Params, context?: HttpContext): Observable<StrictHttpResponse<CaseResponse>> {
-  const rb = new RequestBuilder(rootUrl, casesWithdraw$Json.PATH, 'post');
+export function casesMarkScreened$Json(http: HttpClient, rootUrl: string, params: CasesMarkScreened$Json$Params, context?: HttpContext): Observable<StrictHttpResponse<CaseResponse>> {
+  const rb = new RequestBuilder(rootUrl, casesMarkScreened$Json.PATH, 'post');
   if (params) {
     rb.path('id', params.id, {});
   }
@@ -29,4 +29,4 @@ export function casesWithdraw$Json(http: HttpClient, rootUrl: string, params: Ca
   );
 }
 
-casesWithdraw$Json.PATH = '/api/cases/{id}/withdraw';
+casesMarkScreened$Json.PATH = '/api/cases/{id}/screen';

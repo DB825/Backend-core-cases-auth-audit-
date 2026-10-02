@@ -46,7 +46,11 @@ public record CreateFindingRequest(
     [Required] FindingSeverity Severity,
     [Required] FindingSource Source,
     [Required, MaxLength(100)] string Code,
-    [Required, MaxLength(2000)] string Message);
+    [Required, MaxLength(2000)] string Message,
+    // The ExtractedField row(s) this finding was computed from - e.g. a cross-document address
+    // mismatch cites one field from each document. May be empty for findings that aren't tied
+    // to specific fields (e.g. "missing required document").
+    List<Guid>? SourceFieldIds);
 
 public record FindingResponse(
     Guid Id,
@@ -54,9 +58,11 @@ public record FindingResponse(
     FindingSource Source,
     string Code,
     string Message,
+    List<Guid> SourceFieldIds,
     DateTime CreatedAt)
 {
-    public static FindingResponse From(Finding f) => new(f.Id, f.Severity, f.Source, f.Code, f.Message, f.CreatedAt);
+    public static FindingResponse From(Finding f) => new(
+        f.Id, f.Severity, f.Source, f.Code, f.Message, f.SourceFields.Select(sf => sf.Id).ToList(), f.CreatedAt);
 }
 
 public record MeResponse(string UserId, string Username, string FirmId, string Role);

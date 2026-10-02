@@ -9,18 +9,18 @@ import { RequestBuilder } from '../../request-builder';
 
 import { CaseResponse } from '../../models/case-response';
 
-export interface CasesSubmit$Json$Params {
+export interface CasesMarkAiReviewed$Plain$Params {
   id: string;
 }
 
-export function casesSubmit$Json(http: HttpClient, rootUrl: string, params: CasesSubmit$Json$Params, context?: HttpContext): Observable<StrictHttpResponse<CaseResponse>> {
-  const rb = new RequestBuilder(rootUrl, casesSubmit$Json.PATH, 'post');
+export function casesMarkAiReviewed$Plain(http: HttpClient, rootUrl: string, params: CasesMarkAiReviewed$Plain$Params, context?: HttpContext): Observable<StrictHttpResponse<CaseResponse>> {
+  const rb = new RequestBuilder(rootUrl, casesMarkAiReviewed$Plain.PATH, 'post');
   if (params) {
     rb.path('id', params.id, {});
   }
 
   return http.request(
-    rb.build({ responseType: 'json', accept: 'text/json', context })
+    rb.build({ responseType: 'text', accept: 'text/plain', context })
   ).pipe(
     filter((r: any): r is HttpResponse<any> => r instanceof HttpResponse),
     map((r: HttpResponse<any>) => {
@@ -29,4 +29,4 @@ export function casesSubmit$Json(http: HttpClient, rootUrl: string, params: Case
   );
 }
 
-casesSubmit$Json.PATH = '/api/cases/{id}/submit';
+casesMarkAiReviewed$Plain.PATH = '/api/cases/{id}/mark-ai-reviewed';

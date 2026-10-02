@@ -1,14 +1,17 @@
 namespace CaseAuth.Api.Entities;
 
+// Matches the architecture doc's state machine exactly, since Teammates 1/3/4 each drive a
+// transition after their pipeline step finishes (extraction, screening, AI review).
 public enum CaseStatus
 {
-    Draft,
-    Submitted,
-    UnderReview,
-    PendingDecision,
+    Uploaded,
+    Extracted,
+    Screened,
+    AiReviewed,
+    AwaitingDecision,
     Approved,
     Rejected,
-    Withdrawn,
+    Escalated,
 }
 
 public enum DocumentType
@@ -43,6 +46,7 @@ public enum DecisionOutcome
 {
     Approved,
     Rejected,
+    Escalated,
 }
 
 public enum AuditOutcome

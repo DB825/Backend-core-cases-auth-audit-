@@ -9,12 +9,12 @@ import { RequestBuilder } from '../../request-builder';
 
 import { CaseResponse } from '../../models/case-response';
 
-export interface CasesSubmit$Plain$Params {
+export interface CasesMarkExtracted$Plain$Params {
   id: string;
 }
 
-export function casesSubmit$Plain(http: HttpClient, rootUrl: string, params: CasesSubmit$Plain$Params, context?: HttpContext): Observable<StrictHttpResponse<CaseResponse>> {
-  const rb = new RequestBuilder(rootUrl, casesSubmit$Plain.PATH, 'post');
+export function casesMarkExtracted$Plain(http: HttpClient, rootUrl: string, params: CasesMarkExtracted$Plain$Params, context?: HttpContext): Observable<StrictHttpResponse<CaseResponse>> {
+  const rb = new RequestBuilder(rootUrl, casesMarkExtracted$Plain.PATH, 'post');
   if (params) {
     rb.path('id', params.id, {});
   }
@@ -29,4 +29,4 @@ export function casesSubmit$Plain(http: HttpClient, rootUrl: string, params: Cas
   );
 }
 
-casesSubmit$Plain.PATH = '/api/cases/{id}/submit';
+casesMarkExtracted$Plain.PATH = '/api/cases/{id}/extract';

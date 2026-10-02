@@ -9,18 +9,18 @@ import { RequestBuilder } from '../../request-builder';
 
 import { CaseResponse } from '../../models/case-response';
 
-export interface CasesWithdraw$Plain$Params {
+export interface CasesRequestDocuments$Json$Params {
   id: string;
 }
 
-export function casesWithdraw$Plain(http: HttpClient, rootUrl: string, params: CasesWithdraw$Plain$Params, context?: HttpContext): Observable<StrictHttpResponse<CaseResponse>> {
-  const rb = new RequestBuilder(rootUrl, casesWithdraw$Plain.PATH, 'post');
+export function casesRequestDocuments$Json(http: HttpClient, rootUrl: string, params: CasesRequestDocuments$Json$Params, context?: HttpContext): Observable<StrictHttpResponse<CaseResponse>> {
+  const rb = new RequestBuilder(rootUrl, casesRequestDocuments$Json.PATH, 'post');
   if (params) {
     rb.path('id', params.id, {});
   }
 
   return http.request(
-    rb.build({ responseType: 'text', accept: 'text/plain', context })
+    rb.build({ responseType: 'json', accept: 'text/json', context })
   ).pipe(
     filter((r: any): r is HttpResponse<any> => r instanceof HttpResponse),
     map((r: HttpResponse<any>) => {
@@ -29,4 +29,4 @@ export function casesWithdraw$Plain(http: HttpClient, rootUrl: string, params: C
   );
 }
 
-casesWithdraw$Plain.PATH = '/api/cases/{id}/withdraw';
+casesRequestDocuments$Json.PATH = '/api/cases/{id}/request-documents';

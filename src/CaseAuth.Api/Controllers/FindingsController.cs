@@ -1,6 +1,7 @@
 using CaseAuth.Api.Contracts;
 using CaseAuth.Api.Data;
 using CaseAuth.Api.Entities;
+using CaseAuth.Api.Errors;
 using CaseAuth.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -37,6 +38,23 @@ public class FindingsController(CaseAuthDbContext db, ICaseAccessor caseAccessor
             Code = request.Code,
             Message = request.Message,
         };
+
+        if (request.SourceFieldIds is { Count: > 0 } sourceFieldIds)
+        {
+            // Scoped to this case's own documents, so a finding can never cite a field pulled
+            // from a different case (accidentally or otherwise).
+            var sourceFields = await db.ExtractedFields
+                .Where(f => sourceFieldIds.Contains(f.Id) && f.Document!.CaseId == caseId)
+                .ToListAsync(ct);
+
+            if (sourceFields.Count != sourceFieldIds.Distinct().Count())
+            {
+                throw new ValidationApiException(
+                    "One or more sourceFieldIds do not belong to a document on this case.");
+            }
+
+            finding.SourceFields = sourceFields;
+        }
 
         db.Findings.Add(finding);
         audit.Record(db, c.Id, "Finding.Created", AuditOutcome.Success);

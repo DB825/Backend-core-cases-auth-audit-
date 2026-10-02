@@ -48,6 +48,9 @@ public class CaseAuthDbContext(DbContextOptions<CaseAuthDbContext> options) : Db
             b.Property(f => f.Source).HasConversion<string>();
             b.HasOne(f => f.Case).WithMany(c => c.Findings).HasForeignKey(f => f.CaseId);
             b.HasIndex(f => f.CaseId);
+            // Unidirectional many-to-many via a shadow join table (FindingExtractedField) -
+            // ExtractedField doesn't need to know which findings cite it.
+            b.HasMany(f => f.SourceFields).WithMany();
         });
 
         modelBuilder.Entity<AiReview>(b =>

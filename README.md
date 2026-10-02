@@ -19,8 +19,19 @@ The OpenAPI spec (`openapi/openapi.json`) and the generated Angular client
 (`clients/angular/`) are also in place - see `clients/angular/README.md` for how to consume it
 and `scripts/generate-client.sh` to regenerate both after a contract change.
 
+The case state machine matches the project's full architecture doc:
+`Uploaded → Extracted → Screened → AiReviewed → AwaitingDecision → Approved / Rejected / Escalated`,
+with a `request-documents` action that sends a case back to `Uploaded` from any point before a
+decision. `Finding` also links back to the `ExtractedField` row(s) it was computed from (a
+many-to-many, since a cross-document mismatch cites a field from each document) - needed for
+Teammate 3's screening engine and acceptance criterion #1.
+
 Not done yet: a real S3 storage backend (`Storage:Mode=S3` intentionally throws
 `NotImplementedException` for now), and an actual Angular frontend app consuming the client.
+`AiReview`'s shape (`modelName`/`modelVersion`/`recommendation`/`rationale`) is also simpler
+than Teammate 4's planned output (`summary`, `key_concerns[]` citing finding IDs,
+`recommended_next_steps[]`, `draft_case_note`, derived confidence) - expect that entity/contract
+to grow when the AI review module is built.
 
 ## Running locally
 
@@ -47,7 +58,7 @@ Example flow (see `src/CaseAuth.Api/CaseAuth.Api.http` or Swagger for the full s
 ```bash
 curl -X POST localhost:5020/api/cases -H "X-Dev-User: analyst1" -H "Content-Type: application/json" \
   -d '{"applicantFullName":"Jane Doe"}'
-# submit -> start-review -> ai-reviews -> request-decision, then as supervisor:
+# extract -> screen -> ai-reviews -> mark-ai-reviewed -> request-decision, then as supervisor:
 curl -X POST localhost:5020/api/cases/{id}/decisions -H "X-Dev-User: supervisor" \
   -H "Idempotency-Key: <uuid>" -H "If-Match: <case RowVersion>" \
   -H "Content-Type: application/json" -d '{"outcome":"Approved"}'

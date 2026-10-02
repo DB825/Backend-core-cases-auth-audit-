@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CaseAuth.Api.Migrations
 {
     [DbContext(typeof(CaseAuthDbContext))]
-    [Migration("20261002173104_InitialCreate")]
+    [Migration("20261002180159_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -325,6 +325,21 @@ namespace CaseAuth.Api.Migrations
                     b.ToTable("Findings");
                 });
 
+            modelBuilder.Entity("ExtractedFieldFinding", b =>
+                {
+                    b.Property<Guid>("FindingId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("SourceFieldsId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("FindingId", "SourceFieldsId");
+
+                    b.HasIndex("SourceFieldsId");
+
+                    b.ToTable("ExtractedFieldFinding");
+                });
+
             modelBuilder.Entity("CaseAuth.Api.Entities.AiReview", b =>
                 {
                     b.HasOne("CaseAuth.Api.Entities.Case", "Case")
@@ -395,6 +410,21 @@ namespace CaseAuth.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("Case");
+                });
+
+            modelBuilder.Entity("ExtractedFieldFinding", b =>
+                {
+                    b.HasOne("CaseAuth.Api.Entities.Finding", null)
+                        .WithMany()
+                        .HasForeignKey("FindingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CaseAuth.Api.Entities.ExtractedField", null)
+                        .WithMany()
+                        .HasForeignKey("SourceFieldsId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("CaseAuth.Api.Entities.Applicant", b =>

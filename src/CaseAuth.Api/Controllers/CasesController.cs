@@ -67,30 +67,34 @@ public class CasesController(
         return CaseResponse.From(c);
     }
 
-    [HttpPost("{id:guid}/submit")]
-    public Task<ActionResult<CaseResponse>> Submit(Guid id, CancellationToken ct) =>
-        TransitionAsync(id, "submit", ct);
+    [HttpPost("{id:guid}/extract")]
+    public Task<ActionResult<CaseResponse>> MarkExtracted(Guid id, CancellationToken ct) =>
+        TransitionAsync(id, "extract", ct);
 
-    [HttpPost("{id:guid}/start-review")]
-    public Task<ActionResult<CaseResponse>> StartReview(Guid id, CancellationToken ct) =>
-        TransitionAsync(id, "start-review", ct);
+    [HttpPost("{id:guid}/screen")]
+    public Task<ActionResult<CaseResponse>> MarkScreened(Guid id, CancellationToken ct) =>
+        TransitionAsync(id, "screen", ct);
 
-    [HttpPost("{id:guid}/request-decision")]
-    public async Task<ActionResult<CaseResponse>> RequestDecision(Guid id, CancellationToken ct)
+    [HttpPost("{id:guid}/mark-ai-reviewed")]
+    public async Task<ActionResult<CaseResponse>> MarkAiReviewed(Guid id, CancellationToken ct)
     {
         var hasAiReview = await db.AiReviews.AnyAsync(r => r.CaseId == id, ct);
         if (!hasAiReview)
         {
             throw new ValidationApiException(
-                "At least one AI review must be recorded before requesting a decision.");
+                "At least one AI review must be recorded before marking the case as AI-reviewed.");
         }
 
-        return await TransitionAsync(id, "request-decision", ct);
+        return await TransitionAsync(id, "mark-ai-reviewed", ct);
     }
 
-    [HttpPost("{id:guid}/withdraw")]
-    public Task<ActionResult<CaseResponse>> Withdraw(Guid id, CancellationToken ct) =>
-        TransitionAsync(id, "withdraw", ct);
+    [HttpPost("{id:guid}/request-decision")]
+    public Task<ActionResult<CaseResponse>> RequestDecision(Guid id, CancellationToken ct) =>
+        TransitionAsync(id, "request-decision", ct);
+
+    [HttpPost("{id:guid}/request-documents")]
+    public Task<ActionResult<CaseResponse>> RequestDocuments(Guid id, CancellationToken ct) =>
+        TransitionAsync(id, "request-documents", ct);
 
     private async Task<ActionResult<CaseResponse>> TransitionAsync(Guid id, string action, CancellationToken ct)
     {

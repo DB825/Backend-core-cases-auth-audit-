@@ -194,6 +194,30 @@ namespace CaseAuth.Api.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
+            migrationBuilder.CreateTable(
+                name: "ExtractedFieldFinding",
+                columns: table => new
+                {
+                    FindingId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    SourceFieldsId = table.Column<Guid>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ExtractedFieldFinding", x => new { x.FindingId, x.SourceFieldsId });
+                    table.ForeignKey(
+                        name: "FK_ExtractedFieldFinding_ExtractedFields_SourceFieldsId",
+                        column: x => x.SourceFieldsId,
+                        principalTable: "ExtractedFields",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_ExtractedFieldFinding_Findings_FindingId",
+                        column: x => x.FindingId,
+                        principalTable: "Findings",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
             migrationBuilder.CreateIndex(
                 name: "IX_AiReviews_CaseId_Version",
                 table: "AiReviews",
@@ -243,6 +267,11 @@ namespace CaseAuth.Api.Migrations
                 column: "CaseId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_ExtractedFieldFinding_SourceFieldsId",
+                table: "ExtractedFieldFinding",
+                column: "SourceFieldsId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ExtractedFields_DocumentId",
                 table: "ExtractedFields",
                 column: "DocumentId");
@@ -263,13 +292,16 @@ namespace CaseAuth.Api.Migrations
                 name: "Decisions");
 
             migrationBuilder.DropTable(
+                name: "ExtractedFieldFinding");
+
+            migrationBuilder.DropTable(
+                name: "AiReviews");
+
+            migrationBuilder.DropTable(
                 name: "ExtractedFields");
 
             migrationBuilder.DropTable(
                 name: "Findings");
-
-            migrationBuilder.DropTable(
-                name: "AiReviews");
 
             migrationBuilder.DropTable(
                 name: "Documents");

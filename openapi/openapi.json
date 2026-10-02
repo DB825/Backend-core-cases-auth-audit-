@@ -290,12 +290,12 @@
         }
       }
     },
-    "/api/cases/{id}/submit": {
+    "/api/cases/{id}/extract": {
       "post": {
         "tags": [
           "Cases"
         ],
-        "operationId": "Cases_Submit",
+        "operationId": "Cases_MarkExtracted",
         "parameters": [
           {
             "name": "id",
@@ -331,12 +331,53 @@
         }
       }
     },
-    "/api/cases/{id}/start-review": {
+    "/api/cases/{id}/screen": {
       "post": {
         "tags": [
           "Cases"
         ],
-        "operationId": "Cases_StartReview",
+        "operationId": "Cases_MarkScreened",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaseResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaseResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaseResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cases/{id}/mark-ai-reviewed": {
+      "post": {
+        "tags": [
+          "Cases"
+        ],
+        "operationId": "Cases_MarkAiReviewed",
         "parameters": [
           {
             "name": "id",
@@ -413,12 +454,12 @@
         }
       }
     },
-    "/api/cases/{id}/withdraw": {
+    "/api/cases/{id}/request-documents": {
       "post": {
         "tags": [
           "Cases"
         ],
-        "operationId": "Cases_Withdraw",
+        "operationId": "Cases_RequestDocuments",
         "parameters": [
           {
             "name": "id",
@@ -1076,13 +1117,14 @@
       },
       "CaseStatus": {
         "enum": [
-          "Draft",
-          "Submitted",
-          "UnderReview",
-          "PendingDecision",
+          "Uploaded",
+          "Extracted",
+          "Screened",
+          "AiReviewed",
+          "AwaitingDecision",
           "Approved",
           "Rejected",
-          "Withdrawn"
+          "Escalated"
         ],
         "type": "string"
       },
@@ -1173,6 +1215,14 @@
           "message": {
             "type": "string",
             "nullable": true
+          },
+          "sourceFieldIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -1180,7 +1230,8 @@
       "DecisionOutcome": {
         "enum": [
           "Approved",
-          "Rejected"
+          "Rejected",
+          "Escalated"
         ],
         "type": "string"
       },
@@ -1321,6 +1372,14 @@
           },
           "message": {
             "type": "string",
+            "nullable": true
+          },
+          "sourceFieldIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
             "nullable": true
           },
           "createdAt": {

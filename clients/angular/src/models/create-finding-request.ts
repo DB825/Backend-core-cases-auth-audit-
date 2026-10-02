@@ -8,4 +8,5 @@ export interface CreateFindingRequest {
   message?: string | null;
   severity?: FindingSeverity;
   source?: FindingSource;
+  sourceFieldIds?: Array<string> | null;
 }

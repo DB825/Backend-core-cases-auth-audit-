@@ -10,4 +10,5 @@ export interface FindingResponse {
   message?: string | null;
   severity?: FindingSeverity;
   source?: FindingSource;
+  sourceFieldIds?: Array<string> | null;
 }

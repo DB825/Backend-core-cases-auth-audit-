@@ -31,10 +31,11 @@ public class CaseAuthApiTests(ApiFactory factory) : IClassFixture<ApiFactory>
         var created = await analyst.PostAsJsonAsync("/api/cases", new CreateCaseRequest("Jane Doe", null, null, null));
         var c = (await created.Content.ReadFromJsonAsync<CaseResponse>(JsonOptions))!;
 
-        await analyst.PostAsync($"/api/cases/{c.Id}/submit", null);
-        await analyst.PostAsync($"/api/cases/{c.Id}/start-review", null);
+        await analyst.PostAsync($"/api/cases/{c.Id}/extract", null);
+        await analyst.PostAsync($"/api/cases/{c.Id}/screen", null);
         await analyst.PostAsJsonAsync($"/api/cases/{c.Id}/ai-reviews",
             new CreateAiReviewRequest("demo-classifier", "1.0", AiRecommendation.Approve, "Looks fine."));
+        await analyst.PostAsync($"/api/cases/{c.Id}/mark-ai-reviewed", null);
         var afterRequest = await analyst.PostAsync($"/api/cases/{c.Id}/request-decision", null);
         return (await afterRequest.Content.ReadFromJsonAsync<CaseResponse>(JsonOptions))!;
     }
@@ -71,17 +72,61 @@ public class CaseAuthApiTests(ApiFactory factory) : IClassFixture<ApiFactory>
     }
 
     [Fact]
-    public async Task RequestDecision_WithoutAnyAiReview_Returns400()
+    public async Task MarkAiReviewed_WithoutAnyAiReview_Returns400()
     {
         var analyst = ClientFor("analyst1");
         var created = await analyst.PostAsJsonAsync("/api/cases", new CreateCaseRequest("Jane Doe", null, null, null));
         var c = (await created.Content.ReadFromJsonAsync<CaseResponse>(JsonOptions))!;
-        await analyst.PostAsync($"/api/cases/{c.Id}/submit", null);
-        await analyst.PostAsync($"/api/cases/{c.Id}/start-review", null);
+        await analyst.PostAsync($"/api/cases/{c.Id}/extract", null);
+        await analyst.PostAsync($"/api/cases/{c.Id}/screen", null);
 
-        var response = await analyst.PostAsync($"/api/cases/{c.Id}/request-decision", null);
+        var response = await analyst.PostAsync($"/api/cases/{c.Id}/mark-ai-reviewed", null);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task RequestDocuments_SendsCaseBackToUploaded()
+    {
+        var analyst = ClientFor("analyst1");
+        var created = await analyst.PostAsJsonAsync("/api/cases", new CreateCaseRequest("Jane Doe", null, null, null));
+        var c = (await created.Content.ReadFromJsonAsync<CaseResponse>(JsonOptions))!;
+        await analyst.PostAsync($"/api/cases/{c.Id}/extract", null);
+
+        var response = await analyst.PostAsync($"/api/cases/{c.Id}/request-documents", null);
+        var updated = (await response.Content.ReadFromJsonAsync<CaseResponse>(JsonOptions))!;
+
+        Assert.Equal(CaseStatus.Uploaded, updated.Status);
+    }
+
+    [Fact]
+    public async Task Finding_WithSourceFieldIds_LinksBackToExtractedFields()
+    {
+        var analyst = ClientFor("analyst1");
+        var created = await analyst.PostAsJsonAsync("/api/cases", new CreateCaseRequest("Jane Doe", null, null, null));
+        var c = (await created.Content.ReadFromJsonAsync<CaseResponse>(JsonOptions))!;
+
+        var pdfPart = new ByteArrayContent("%PDF-1.4 fixture"u8.ToArray());
+        pdfPart.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/pdf");
+        using var fileContent = new MultipartFormDataContent
+        {
+            { new StringContent("GovernmentId"), "documentType" },
+            { pdfPart, "file", "id.pdf" },
+        };
+        var uploadResponse = await analyst.PostAsync($"/api/cases/{c.Id}/documents", fileContent);
+        var document = (await uploadResponse.Content.ReadFromJsonAsync<DocumentResponse>(JsonOptions))!;
+
+        var fieldResponse = await analyst.PostAsJsonAsync($"/api/documents/{document.Id}/extracted-fields",
+            new CreateExtractedFieldsRequest([new ExtractedFieldInput("Address", "123 Main St", 0.9)]));
+        var fields = (await fieldResponse.Content.ReadFromJsonAsync<List<ExtractedFieldResponse>>(JsonOptions))!;
+
+        var findingResponse = await analyst.PostAsJsonAsync($"/api/cases/{c.Id}/findings",
+            new CreateFindingRequest(FindingSeverity.Warning, FindingSource.Manual, "ADDRESS_MISMATCH",
+                "Address differs from the application.", [fields[0].Id]));
+        var finding = (await findingResponse.Content.ReadFromJsonAsync<FindingResponse>(JsonOptions))!;
+
+        Assert.Equal(HttpStatusCode.Created, findingResponse.StatusCode);
+        Assert.Equal([fields[0].Id], finding.SourceFieldIds);
     }
 
     [Fact]
