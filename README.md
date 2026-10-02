@@ -43,6 +43,12 @@ than Teammate 4's planned output (`summary`, `key_concerns[]` citing finding IDs
 `recommended_next_steps[]`, `draft_case_note`, derived confidence) - expect that entity/contract
 to grow when the AI review module is built.
 
+The `Dockerfile` builds and runs correctly, but **the container won't start at all without
+`ASPNETCORE_ENVIRONMENT=Development` set explicitly** - it defaults to `Production`, and
+`Program.cs` refuses to register the dev-only auth handler there (on purpose, since there's no
+real auth yet). Whoever wires up the Kubernetes manifests needs that env var in the
+Deployment/ConfigMap for now, until real authentication exists.
+
 ## Running locally
 
 Requires the .NET 8 SDK (`dotnet --version`).
@@ -76,3 +82,19 @@ curl -X POST localhost:5020/api/cases/{id}/decisions -H "X-Dev-User: supervisor"
 
 To switch to Postgres, set `Database:Provider=Postgres` and
 `ConnectionStrings:Postgres` (see `appsettings.json`).
+
+## Running in Docker
+
+```bash
+docker build -t caseauth-api .
+docker run -p 8080:8080 \
+  -e ASPNETCORE_URLS=http://+:8080 \
+  -e ASPNETCORE_ENVIRONMENT=Development \
+  caseauth-api
+# -> http://localhost:8080, Swagger UI at /swagger
+```
+
+`ASPNETCORE_ENVIRONMENT=Development` is required (see the note above) - without it the
+container crashes on startup with `No production authentication handler is configured`. The
+container uses an in-container SQLite file, so data doesn't persist across restarts; nothing
+else is required to get a working API inside it (migrations apply automatically).
