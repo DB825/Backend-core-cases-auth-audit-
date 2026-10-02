@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{19DA7145-8988-40A0-82A6-C101792A0C3E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CaseAuth.Api", "src\CaseAuth.Api\CaseAuth.Api.csproj", "{181B484E-92EF-4A3A-8EF0-B92D1CDF2CD3}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{011E3CA3-01B0-41DD-AC13-9BA256BE93E0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CaseAuth.Api.Tests", "tests\CaseAuth.Api.Tests\CaseAuth.Api.Tests.csproj", "{81343BE0-946D-4331-A364-251BE0EA1746}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{181B484E-92EF-4A3A-8EF0-B92D1CDF2CD3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{181B484E-92EF-4A3A-8EF0-B92D1CDF2CD3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{181B484E-92EF-4A3A-8EF0-B92D1CDF2CD3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{181B484E-92EF-4A3A-8EF0-B92D1CDF2CD3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{81343BE0-946D-4331-A364-251BE0EA1746}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{81343BE0-946D-4331-A364-251BE0EA1746}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{81343BE0-946D-4331-A364-251BE0EA1746}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{81343BE0-946D-4331-A364-251BE0EA1746}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{181B484E-92EF-4A3A-8EF0-B92D1CDF2CD3} = {19DA7145-8988-40A0-82A6-C101792A0C3E}
+		{81343BE0-946D-4331-A364-251BE0EA1746} = {011E3CA3-01B0-41DD-AC13-9BA256BE93E0}
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,111 @@
+using CaseAuth.Api.Auth;
+using CaseAuth.Api.Contracts;
+using CaseAuth.Api.Data;
+using CaseAuth.Api.Entities;
+using CaseAuth.Api.Errors;
+using CaseAuth.Api.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+
+namespace CaseAuth.Api.Controllers;
+
+[ApiController]
+[Route("api/cases")]
+[Authorize]
+public class CasesController(
+    CaseAuthDbContext db,
+    ICurrentUser currentUser,
+    ICaseAccessor caseAccessor,
+    IAuditService audit) : ControllerBase
+{
+    [HttpPost]
+    public async Task<ActionResult<CaseResponse>> Create([FromBody] CreateCaseRequest request, CancellationToken ct)
+    {
+        var applicant = new Applicant
+        {
+            FirmId = currentUser.FirmId,
+            FullName = request.ApplicantFullName,
+            DateOfBirth = request.ApplicantDateOfBirth,
+            Email = request.ApplicantEmail,
+            Phone = request.ApplicantPhone,
+        };
+
+        var newCase = new Case
+        {
+            FirmId = currentUser.FirmId,
+            ApplicantId = applicant.Id,
+            Applicant = applicant,
+            CreatedByUserId = currentUser.UserId,
+        };
+
+        db.Applicants.Add(applicant);
+        db.Cases.Add(newCase);
+        audit.Record(db, newCase.Id, "Case.Created", AuditOutcome.Success);
+        await db.SaveChangesAsync(ct);
+
+        return CreatedAtAction(nameof(Get), new { id = newCase.Id }, CaseResponse.From(newCase));
+    }
+
+    [HttpGet]
+    public async Task<ActionResult<List<CaseResponse>>> List(CancellationToken ct)
+    {
+        // Scoped by the caller's own firm claim - there is no firmId query parameter to trust.
+        var cases = await db.Cases
+            .Include(c => c.Applicant)
+            .Where(c => c.FirmId == currentUser.FirmId)
+            .OrderByDescending(c => c.CreatedAt)
+            .ToListAsync(ct);
+
+        return cases.Select(CaseResponse.From).ToList();
+    }
+
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<CaseResponse>> Get(Guid id, CancellationToken ct)
+    {
+        var c = await caseAccessor.GetScopedCaseAsync(db, id, ct, includeApplicant: true);
+        return CaseResponse.From(c);
+    }
+
+    [HttpPost("{id:guid}/submit")]
+    public Task<ActionResult<CaseResponse>> Submit(Guid id, CancellationToken ct) =>
+        TransitionAsync(id, "submit", ct);
+
+    [HttpPost("{id:guid}/start-review")]
+    public Task<ActionResult<CaseResponse>> StartReview(Guid id, CancellationToken ct) =>
+        TransitionAsync(id, "start-review", ct);
+
+    [HttpPost("{id:guid}/request-decision")]
+    public async Task<ActionResult<CaseResponse>> RequestDecision(Guid id, CancellationToken ct)
+    {
+        var hasAiReview = await db.AiReviews.AnyAsync(r => r.CaseId == id, ct);
+        if (!hasAiReview)
+        {
+            throw new ValidationApiException(
+                "At least one AI review must be recorded before requesting a decision.");
+        }
+
+        return await TransitionAsync(id, "request-decision", ct);
+    }
+
+    [HttpPost("{id:guid}/withdraw")]
+    public Task<ActionResult<CaseResponse>> Withdraw(Guid id, CancellationToken ct) =>
+        TransitionAsync(id, "withdraw", ct);
+
+    private async Task<ActionResult<CaseResponse>> TransitionAsync(Guid id, string action, CancellationToken ct)
+    {
+        var c = await caseAccessor.GetScopedCaseAsync(db, id, ct, includeApplicant: true);
+
+        // CaseStateMachine.Resolve throws ConflictApiException/ForbiddenApiException for an
+        // illegal transition or missing role; nothing is written to the database in that case.
+        var transition = CaseStateMachine.Resolve(action, c.Status, currentUser.Role);
+        c.Status = transition.To;
+
+        // The status change and its audit event are added to the same DbContext and committed
+        // by a single SaveChangesAsync call, so they land in one transaction together.
+        audit.Record(db, c.Id, $"Case.{action}", AuditOutcome.Success);
+        await db.SaveChangesAsync(ct);
+
+        return CaseResponse.From(c);
+    }
+}
