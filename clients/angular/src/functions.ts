@@ -65,6 +65,8 @@ export type { DocumentsUpload$Plain$Params as DocumentsUpload$Plain$Params } fro
 export { documentsUpload$Plain as documentsUpload$Plain } from './fn/documents/documents-upload-plain';
 export type { DocumentsUpload$Json$Params as DocumentsUpload$Json$Params } from './fn/documents/documents-upload-json';
 export { documentsUpload$Json as documentsUpload$Json } from './fn/documents/documents-upload-json';
+export type { DocumentsContent$Params as DocumentsContent$Params } from './fn/documents/documents-content';
+export { documentsContent as documentsContent } from './fn/documents/documents-content';
 export type { ExtractedFieldsList$Plain$Params as ExtractedFieldsList$Plain$Params } from './fn/extracted-fields/extracted-fields-list-plain';
 export { extractedFieldsList$Plain as extractedFieldsList$Plain } from './fn/extracted-fields/extracted-fields-list-plain';
 export type { ExtractedFieldsList$Json$Params as ExtractedFieldsList$Json$Params } from './fn/extracted-fields/extracted-fields-list-json';

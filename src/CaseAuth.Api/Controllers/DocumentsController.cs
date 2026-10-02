@@ -34,6 +34,19 @@ public class DocumentsController(
         return documents.Select(DocumentResponse.From).ToList();
     }
 
+    // Streams the stored file back so the review UI can show the document next to its
+    // extracted fields. Firm scoping comes from the case lookup, same as every other endpoint.
+    [HttpGet("{documentId:guid}/content")]
+    public async Task<IActionResult> Content(Guid caseId, Guid documentId, CancellationToken ct)
+    {
+        await caseAccessor.GetScopedCaseAsync(db, caseId, ct);
+        var document = await db.Documents.FirstOrDefaultAsync(d => d.Id == documentId && d.CaseId == caseId, ct)
+            ?? throw new NotFoundApiException($"Document '{documentId}' was not found.");
+
+        var stream = await storage.OpenReadAsync(document.StorageKey, ct);
+        return File(stream, document.ContentType);
+    }
+
     [HttpPost]
     [RequestSizeLimit(20 * 1024 * 1024)]
     public async Task<ActionResult<DocumentResponse>> Upload(

@@ -131,6 +131,33 @@ public class CaseAuthApiTests(ApiFactory factory) : IClassFixture<ApiFactory>
     }
 
     [Fact]
+    public async Task DocumentContent_StreamsUploadedFile_OnlyToTheOwningFirm()
+    {
+        var analyst = ClientFor("analyst1");
+        var created = await analyst.PostAsJsonAsync("/api/cases", new CreateCaseRequest("Jane Doe", null, null, null));
+        var c = (await created.Content.ReadFromJsonAsync<CaseResponse>(JsonOptions))!;
+
+        var bytes = "%PDF-1.4 fixture content"u8.ToArray();
+        var pdfPart = new ByteArrayContent(bytes);
+        pdfPart.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/pdf");
+        using var fileContent = new MultipartFormDataContent
+        {
+            { new StringContent("GovernmentId"), "documentType" },
+            { pdfPart, "file", "id.pdf" },
+        };
+        var uploadResponse = await analyst.PostAsync($"/api/cases/{c.Id}/documents", fileContent);
+        var document = (await uploadResponse.Content.ReadFromJsonAsync<DocumentResponse>(JsonOptions))!;
+
+        var content = await analyst.GetAsync($"/api/cases/{c.Id}/documents/{document.Id}/content");
+        Assert.Equal(HttpStatusCode.OK, content.StatusCode);
+        Assert.Equal("application/pdf", content.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(bytes, await content.Content.ReadAsByteArrayAsync());
+
+        var otherFirm = await ClientFor("analyst2").GetAsync($"/api/cases/{c.Id}/documents/{document.Id}/content");
+        Assert.Equal(HttpStatusCode.NotFound, otherFirm.StatusCode);
+    }
+
+    [Fact]
     public async Task AiReviewInput_CombinesExtractedFieldsAndFindingsForTheCase()
     {
         var analyst = ClientFor("analyst1");
