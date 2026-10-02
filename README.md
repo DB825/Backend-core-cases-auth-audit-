@@ -26,7 +26,7 @@ Requires the .NET 8 SDK (`dotnet --version`).
 # run the API (applies EF migrations automatically in Development)
 cd src/CaseAuth.Api
 dotnet run
-# -> http://localhost:5000 (or whatever ASPNETCORE_URLS specifies), Swagger UI at /swagger
+# -> http://localhost:5020 (launchSettings.json's "http" profile), Swagger UI at /swagger
 
 # run the tests
 cd ../..
@@ -41,10 +41,10 @@ This header-based handler only runs in the Development environment - see
 Example flow (see `src/CaseAuth.Api/CaseAuth.Api.http` or Swagger for the full set):
 
 ```bash
-curl -X POST localhost:5000/api/cases -H "X-Dev-User: analyst1" -H "Content-Type: application/json" \
+curl -X POST localhost:5020/api/cases -H "X-Dev-User: analyst1" -H "Content-Type: application/json" \
   -d '{"applicantFullName":"Jane Doe"}'
 # submit -> start-review -> ai-reviews -> request-decision, then as supervisor:
-curl -X POST localhost:5000/api/cases/{id}/decisions -H "X-Dev-User: supervisor" \
+curl -X POST localhost:5020/api/cases/{id}/decisions -H "X-Dev-User: supervisor" \
   -H "Idempotency-Key: <uuid>" -H "If-Match: <case RowVersion>" \
   -H "Content-Type: application/json" -d '{"outcome":"Approved"}'
 ```
