@@ -49,6 +49,13 @@ The `Dockerfile` builds and runs correctly, but **the container won't start at a
 real auth yet). Whoever wires up the Kubernetes manifests needs that env var in the
 Deployment/ConfigMap for now, until real authentication exists.
 
+## Demo dashboard and test data
+
+`dashboard/` is the compliance review UI (case queue by risk, case detail with document
+images, findings, AI review, decision buttons and audit trail). `demo/` holds five synthetic
+applicant personas and a script that loads them into a running API. See
+`dashboard/README.md` and `demo/README.md`.
+
 ## Running locally
 
 Requires the .NET 8 SDK (`dotnet --version`).

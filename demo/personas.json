@@ -1,0 +1,196 @@
+{
+  "_note": "Synthetic test personas for the demo. Every name, date, address, phone number and TIN here is invented. TINs use 987-65-432x, a range the SSA reserves for advertising and never issues. The sanctions entry in persona 4 is a made-up stand-in, not a real SDN record. Every document image generated from this file is stamped SPECIMEN.",
+  "personas": [
+    {
+      "key": "clean",
+      "label": "Clean applicant, should clear",
+      "applicant": { "fullName": "Maria Elena Torres", "dateOfBirth": "1984-03-12", "email": "m.torres@example.com", "phone": "305-555-0142" },
+      "documents": [
+        { "key": "id", "type": "GovernmentId", "title": "Driver License (Florida)", "file": "clean_drivers_license.png",
+          "fields": [
+            { "name": "FULL_NAME", "value": "MARIA ELENA TORRES", "confidence": 0.99 },
+            { "name": "DATE_OF_BIRTH", "value": "1984-03-12", "confidence": 0.98 },
+            { "name": "ADDRESS", "value": "1450 BRICKELL BAY DR APT 2204, MIAMI, FL 33131", "confidence": 0.96 },
+            { "name": "DOCUMENT_NUMBER", "value": "T652-118-84-312-0", "confidence": 0.97 },
+            { "name": "EXPIRATION_DATE", "value": "2029-03-12", "confidence": 0.98 }
+          ] },
+        { "key": "w9", "type": "Financial", "title": "Form W-9", "file": "clean_w9.png",
+          "fields": [
+            { "name": "TAXPAYER_NAME", "value": "MARIA ELENA TORRES", "confidence": 0.98 },
+            { "name": "TIN", "value": "987-65-4320", "confidence": 0.97 },
+            { "name": "ADDRESS", "value": "1450 BRICKELL BAY DR APT 2204, MIAMI, FL 33131", "confidence": 0.95 }
+          ] }
+      ],
+      "findings": [
+        { "code": "SANCTIONS_SCREEN_CLEAR", "severity": "Low", "score": 0.02, "message": "No watchlist entry scored above 0.70 against MARIA ELENA TORRES.", "fields": ["id.FULL_NAME"] }
+      ],
+      "aiReview": {
+        "recommendation": "Approve",
+        "summary": "Name, date of birth, address and TIN agree across the driver license and W-9. The ID is valid until 2029 and the sanctions screen is clear.",
+        "keyConcerns": [],
+        "nextSteps": ["No further verification needed. Approve and open the account."],
+        "draftCaseNote": "Identity verified against a Florida driver license and W-9. All fields consistent. No watchlist hits. Recommend approval."
+      }
+    },
+    {
+      "key": "mismatch",
+      "label": "Name and address mismatch (Smith/Smyth)",
+      "applicant": { "fullName": "John Smith", "dateOfBirth": "1979-11-02", "email": "jsmith79@example.com", "phone": "407-555-0187" },
+      "documents": [
+        { "key": "id", "type": "GovernmentId", "title": "Driver License (Illinois)", "file": "mismatch_drivers_license.png",
+          "fields": [
+            { "name": "FULL_NAME", "value": "JOHN SMITH", "confidence": 0.98 },
+            { "name": "DATE_OF_BIRTH", "value": "1979-11-02", "confidence": 0.97 },
+            { "name": "ADDRESS", "value": "742 EVERGREEN TER, SPRINGFIELD, IL 62704", "confidence": 0.95 },
+            { "name": "DOCUMENT_NUMBER", "value": "S530-4417-9306", "confidence": 0.96 },
+            { "name": "EXPIRATION_DATE", "value": "2028-11-02", "confidence": 0.97 }
+          ] },
+        { "key": "w9", "type": "Financial", "title": "Form W-9", "file": "mismatch_w9.png",
+          "fields": [
+            { "name": "TAXPAYER_NAME", "value": "JOHN SMYTH", "confidence": 0.94 },
+            { "name": "TIN", "value": "987-65-4321", "confidence": 0.96 },
+            { "name": "ADDRESS", "value": "88 LAKEVIEW RD, ORLANDO, FL 32801", "confidence": 0.93 }
+          ] }
+      ],
+      "findings": [
+        { "code": "NAME_MISMATCH", "severity": "High", "score": 0.82, "message": "Surname on the W-9 (SMYTH) differs from the driver license (SMITH). Jaro-Winkler similarity 0.93: close enough to be the same person, different enough to need a check.", "fields": ["id.FULL_NAME", "w9.TAXPAYER_NAME"] },
+        { "code": "ADDRESS_MISMATCH", "severity": "Medium", "score": 0.6, "message": "Driver license address is in Springfield, IL. W-9 address is in Orlando, FL.", "fields": ["id.ADDRESS", "w9.ADDRESS"] }
+      ],
+      "aiReview": {
+        "recommendation": "Escalate",
+        "summary": "The W-9 spells the surname SMYTH while the ID says SMITH, and the two documents give addresses in different states. Both could be a typo and a recent move, but together they mean the W-9 may belong to someone else.",
+        "keyConcerns": [
+          { "text": "Taxpayer name on the W-9 does not match the government ID.", "findingCodes": ["NAME_MISMATCH"] },
+          { "text": "Address on the W-9 (Florida) does not match the ID (Illinois).", "findingCodes": ["ADDRESS_MISMATCH"] }
+        ],
+        "nextSteps": [
+          "Request a utility bill or lease showing the Florida address.",
+          "Ask the applicant to confirm the correct spelling of their surname and resubmit the W-9 if needed."
+        ],
+        "draftCaseNote": "W-9 taxpayer name (John Smyth) and address (Orlando, FL) differ from the Illinois driver license (John Smith, Springfield, IL). Requested proof of the Florida address and a corrected W-9 before approval."
+      }
+    },
+    {
+      "key": "expired",
+      "label": "Expired ID",
+      "applicant": { "fullName": "Aisha Rahman", "dateOfBirth": "1991-07-24", "email": "aisha.rahman@example.com", "phone": "214-555-0119" },
+      "documents": [
+        { "key": "id", "type": "GovernmentId", "title": "Passport", "file": "expired_passport.png",
+          "fields": [
+            { "name": "FULL_NAME", "value": "AISHA RAHMAN", "confidence": 0.97 },
+            { "name": "DATE_OF_BIRTH", "value": "1991-07-24", "confidence": 0.58 },
+            { "name": "DOCUMENT_NUMBER", "value": "X48210937", "confidence": 0.95 },
+            { "name": "EXPIRATION_DATE", "value": "2024-06-30", "confidence": 0.96 }
+          ] },
+        { "key": "w9", "type": "Financial", "title": "Form W-9", "file": "expired_w9.png",
+          "fields": [
+            { "name": "TAXPAYER_NAME", "value": "AISHA RAHMAN", "confidence": 0.98 },
+            { "name": "TIN", "value": "987-65-4322", "confidence": 0.97 },
+            { "name": "ADDRESS", "value": "3100 MCKINNON ST APT 1208, DALLAS, TX 75201", "confidence": 0.95 }
+          ] }
+      ],
+      "findings": [
+        { "code": "ID_EXPIRED", "severity": "High", "score": 0.6, "message": "Passport expired on 2024-06-30.", "fields": ["id.EXPIRATION_DATE"] },
+        { "code": "LOW_CONFIDENCE_FIELD", "severity": "Medium", "score": 0.35, "message": "Date of birth on the passport was read with 58% confidence. A person should confirm it against the image.", "fields": ["id.DATE_OF_BIRTH"] }
+      ],
+      "aiReview": {
+        "recommendation": "Escalate",
+        "summary": "The only government ID provided is a passport that expired in June 2024, so identity cannot be verified yet. The date of birth on it was also hard to read.",
+        "keyConcerns": [
+          { "text": "Government ID is expired.", "findingCodes": ["ID_EXPIRED"] },
+          { "text": "Date of birth was extracted with low confidence and is unconfirmed.", "findingCodes": ["LOW_CONFIDENCE_FIELD"] }
+        ],
+        "nextSteps": [
+          "Request a current, unexpired government ID.",
+          "Confirm the date of birth by eye against the passport image."
+        ],
+        "draftCaseNote": "Applicant supplied a passport that expired 2024-06-30. Requested a current government-issued ID. Date of birth pending manual confirmation."
+      }
+    },
+    {
+      "key": "sanctions",
+      "label": "Near-match against the sanctions list",
+      "applicant": { "fullName": "Ruslan Tarkhovsky", "dateOfBirth": "1972-01-15", "email": "r.tarkhovsky@example.com", "phone": "646-555-0163" },
+      "documents": [
+        { "key": "id", "type": "GovernmentId", "title": "Passport", "file": "sanctions_passport.png",
+          "fields": [
+            { "name": "FULL_NAME", "value": "RUSLAN TARKHOVSKY", "confidence": 0.98 },
+            { "name": "DATE_OF_BIRTH", "value": "1972-01-15", "confidence": 0.97 },
+            { "name": "NATIONALITY", "value": "CYPRUS", "confidence": 0.96 },
+            { "name": "DOCUMENT_NUMBER", "value": "K0938214", "confidence": 0.96 },
+            { "name": "EXPIRATION_DATE", "value": "2030-09-01", "confidence": 0.97 }
+          ] },
+        { "key": "w9", "type": "Financial", "title": "Form W-9", "file": "sanctions_w9.png",
+          "fields": [
+            { "name": "TAXPAYER_NAME", "value": "RUSLAN TARKHOVSKY", "confidence": 0.97 },
+            { "name": "TIN", "value": "987-65-4323", "confidence": 0.96 },
+            { "name": "ADDRESS", "value": "200 E 57TH ST APT 31C, NEW YORK, NY 10022", "confidence": 0.95 }
+          ] }
+      ],
+      "findings": [
+        { "code": "SANCTIONS_NEAR_MATCH", "severity": "High", "score": 0.91, "message": "Name scores 0.91 (Jaro-Winkler) against watchlist entry 'TARKOVSKIY, Ruslan' (synthetic demo entry). The list entry gives DOB 1971, the applicant's is 1972.", "fields": ["id.FULL_NAME", "id.DATE_OF_BIRTH"] }
+      ],
+      "aiReview": {
+        "recommendation": "Escalate",
+        "summary": "The name is a close fuzzy match to a sanctions list entry. The birth years differ by one, which is not enough to rule out a match or to confirm one. A name match alone should not decide this case either way.",
+        "keyConcerns": [
+          { "text": "Possible sanctions list match on name.", "findingCodes": ["SANCTIONS_NEAR_MATCH"] }
+        ],
+        "nextSteps": [
+          "Compare full date of birth, nationality and place of birth against the list entry.",
+          "Hold the account and route to the sanctions officer. Do not tip off the applicant."
+        ],
+        "draftCaseNote": "Potential sanctions match (0.91 name similarity). Birth year differs by one. Routed to the sanctions officer for disposition before any account activity."
+      }
+    },
+    {
+      "key": "shell",
+      "label": "Shell company with unclear beneficial ownership",
+      "applicant": { "fullName": "Bluewater Meridian Holdings LLC", "email": "admin@bluewater-meridian.example.com", "phone": "407-555-0187" },
+      "documents": [
+        { "key": "app", "type": "Other", "title": "Entity Account Application", "file": "shell_account_application.png",
+          "fields": [
+            { "name": "ENTITY_NAME", "value": "BLUEWATER MERIDIAN HOLDINGS LLC", "confidence": 0.97 },
+            { "name": "MAILING_ADDRESS", "value": "PO BOX 4471, ORLANDO, FL 32802", "confidence": 0.94 },
+            { "name": "REGISTERED_ADDRESS", "value": "100 REGISTERED AGENT WAY STE 5, DOVER, DE 19901", "confidence": 0.95 },
+            { "name": "PHONE", "value": "407-555-0187", "confidence": 0.93 },
+            { "name": "AUTHORIZED_SIGNER", "value": "D. KELLER", "confidence": 0.71 }
+          ] },
+        { "key": "bo", "type": "Other", "title": "Beneficial Ownership Certification", "file": "shell_beneficial_ownership.png",
+          "fields": [
+            { "name": "OWNER_1", "value": "HARBOR NOMINEE SERVICES LTD (BRITISH VIRGIN ISLANDS) - 60%", "confidence": 0.9 },
+            { "name": "OWNER_2", "value": "NOT PROVIDED - 40%", "confidence": 0.88 },
+            { "name": "CONTROL_PERSON", "value": "D. KELLER", "confidence": 0.7 }
+          ] },
+        { "key": "w9", "type": "Financial", "title": "Form W-9", "file": "shell_w9.png",
+          "fields": [
+            { "name": "TAXPAYER_NAME", "value": "BLUEWATER MERIDIAN HOLDINGS LLC", "confidence": 0.96 },
+            { "name": "TIN", "value": "98-7654324", "confidence": 0.95 },
+            { "name": "ADDRESS", "value": "PO BOX 4471, ORLANDO, FL 32802", "confidence": 0.94 }
+          ] }
+      ],
+      "findings": [
+        { "code": "UNCLEAR_BENEFICIAL_OWNERSHIP", "severity": "High", "score": 0.85, "message": "No natural person is named as owning 25% or more. 60% is held by a nominee company and 40% is not disclosed.", "fields": ["bo.OWNER_1", "bo.OWNER_2"] },
+        { "code": "ADDRESS_DIFFERS_FROM_REGISTERED", "severity": "Medium", "score": 0.55, "message": "Mailing address (Orlando PO box) differs from the entity's registered address (Dover, DE).", "fields": ["app.MAILING_ADDRESS", "app.REGISTERED_ADDRESS"] },
+        { "code": "HIGH_RISK_JURISDICTION", "severity": "Medium", "score": 0.5, "message": "Majority owner is incorporated in the British Virgin Islands.", "fields": ["bo.OWNER_1"] },
+        { "code": "PO_BOX_ADDRESS", "severity": "Low", "score": 0.25, "message": "Mailing and W-9 address is a PO box.", "fields": ["app.MAILING_ADDRESS", "w9.ADDRESS"] },
+        { "code": "SHARED_CONTACT_DETAILS", "severity": "Medium", "score": 0.45, "message": "Phone number 407-555-0187 is also on file for an unrelated applicant (John Smith).", "fields": ["app.PHONE"] }
+      ],
+      "aiReview": {
+        "recommendation": "Reject",
+        "summary": "No real person is identified as the owner. The majority owner is a nominee company in the British Virgin Islands, the mailing address is a PO box that differs from the registered address, and the phone number is shared with another applicant. This is the profile of a shell entity.",
+        "keyConcerns": [
+          { "text": "Beneficial owners are not identified.", "findingCodes": ["UNCLEAR_BENEFICIAL_OWNERSHIP", "HIGH_RISK_JURISDICTION"] },
+          { "text": "Address on file differs from the registered address.", "findingCodes": ["ADDRESS_DIFFERS_FROM_REGISTERED", "PO_BOX_ADDRESS"] },
+          { "text": "Contact details are reused by an unrelated applicant.", "findingCodes": ["SHARED_CONTACT_DETAILS"] }
+        ],
+        "nextSteps": [
+          "Request identification for every natural person owning 25% or more, and for the control person.",
+          "Verify the entity's registered address with the Delaware Division of Corporations.",
+          "Review the linked applicant who shares this phone number."
+        ],
+        "draftCaseNote": "Entity applicant with nominee ownership (BVI), undisclosed 40% owner, PO box mailing address differing from the registered address, and a phone number shared with another applicant. Recommend declining unless full beneficial ownership is documented."
+      }
+    }
+  ]
+}
