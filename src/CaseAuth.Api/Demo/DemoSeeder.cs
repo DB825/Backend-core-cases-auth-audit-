@@ -42,7 +42,9 @@ public class DemoSeeder(
             ?? SeedActorId;
         var correlationId = Guid.NewGuid().ToString();
         // Stagger timestamps so each case's audit trail sorts in the order the steps happened.
-        var clock = DateTime.UtcNow;
+        // Start in the past: ~100 events at 10ms each would otherwise run a second ahead of the
+        // real clock, and anything a user did straight after a reset would sort above the seed.
+        var clock = DateTime.UtcNow.AddSeconds(-10);
         DateTime Tick() => clock = clock.AddMilliseconds(10);
 
         void Audit(Guid? caseId, string action, int? aiReviewVersion = null) => db.AuditEvents.Add(new AuditEvent
