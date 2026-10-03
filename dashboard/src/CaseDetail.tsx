@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  api, parseRationale, type AiReviewInput, type AiReviewResponse, type AuditEventResponse, type CaseResponse,
-  type DecisionOutcome, type DecisionResponse, type DocumentResponse, type Me, type Severity,
+  api, structuredReview, type AiReviewInput, type AiReviewResponse, type AuditEventResponse, type CaseResponse,
+  type CaseNote, type DecisionOutcome, type DecisionResponse, type DocumentResponse, type Me, type ReviewField, type Severity,
 } from "./api";
 import { LOW_CONFIDENCE, riskFor } from "./risk";
 import { RecommendationTag, RiskBadge, SeverityTag, StatusTag } from "./Badges";
@@ -16,7 +16,8 @@ interface Data {
 }
 
 const SEV_RANK: Record<Severity, number> = { Low: 1, Medium: 2, High: 3 };
-const pretty = (s: string) => s.replace(/_/g, " ").toLowerCase();
+// Short all-caps names are acronyms (TIN, DOB): keep them as-is.
+const pretty = (s: string) => (/^[A-Z]{2,4}$/.test(s) ? s : s.replace(/_/g, " ").toLowerCase());
 const DOC_TYPE_LABEL: Record<string, string> = { GovernmentId: "Government ID", ProofOfAddress: "Proof of address", Financial: "Financial", Other: "Other" };
 
 export default function CaseDetail({ me, caseId }: { me: Me; caseId: string }) {
@@ -106,7 +107,7 @@ export default function CaseDetail({ me, caseId }: { me: Me; caseId: string }) {
                   return (
                     <tr key={f.id} className={cls}>
                       <th>{pretty(f.fieldName)}</th>
-                      <td className="field-value">{f.fieldValue}</td>
+                      <td className="field-value"><FieldValue user={me.username} field={f} onRevealed={load} /></td>
                       <td className={low ? "conf low" : "conf"} title="Extraction confidence">
                         {f.confidence === null ? "–" : `${Math.round(f.confidence * 100)}%`}
                         {low && <span className="conf-note">check by eye</span>}
@@ -140,7 +141,10 @@ export default function CaseDetail({ me, caseId }: { me: Me; caseId: string }) {
           </ul>
         </section>
 
-        <AiPanel review={review} />
+        <div className="stack">
+          <AiPanel review={review} />
+          <CaseNotePanel me={me} caseId={c.id} review={review} status={c.status} onSaved={load} />
+        </div>
       </div>
 
       <DecisionPanel me={me} c={c} review={review} decisions={decisions} onDecided={load} />
@@ -183,15 +187,35 @@ function DocumentImage({ user, caseId, doc }: { user: string; caseId: string; do
     : <img className="doc-image" src={url} alt={`${doc.documentType} document, ${doc.fileName}`} />;
 }
 
-function AiPanel({ review }: { review: AiReviewResponse | null }) {
-  const parsed = review ? parseRationale(review.rationale) : null;
-  const [note, setNote] = useState(parsed?.draftCaseNote ?? "");
-  const [copied, setCopied] = useState(false);
-  useEffect(() => setNote(parsed?.draftCaseNote ?? ""), [review?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+function FieldValue({ user, field, onRevealed }: { user: string; field: ReviewField; onRevealed: () => Promise<void> }) {
+  const [full, setFull] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  if (!field.isMasked) return <>{field.fieldValue}</>;
+  if (full !== null) return <>{full} <span className="revealed" title="This reveal is in the audit trail">revealed</span></>;
+  const reveal = async () => {
+    setBusy(true);
+    try {
+      setFull((await api.revealField(user, field.documentId, field.id)).fieldValue);
+      await onRevealed();
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <>
+      {field.fieldValue}{" "}
+      <button className="btn ghost small" disabled={busy} onClick={reveal} title="Shows the full number and records who saw it">
+        {busy ? "Revealing…" : "Reveal"}
+      </button>
+    </>
+  );
+}
 
-  if (!review || !parsed) {
+function AiPanel({ review }: { review: AiReviewResponse | null }) {
+  if (!review) {
     return <section className="panel ai-panel"><h2>AI review</h2><p className="muted">No AI review yet.</p></section>;
   }
+  const parsed = structuredReview(review);
   return (
     <section className="panel ai-panel">
       <div className="ai-head">
@@ -214,15 +238,68 @@ function AiPanel({ review }: { review: AiReviewResponse | null }) {
         <h3>Suggested next steps</h3>
         <ol className="steps">{parsed.nextSteps.map((s, i) => <li key={i}>{s}</li>)}</ol>
       </>}
+      <p className="ai-meta muted small">{review.modelName} · {review.modelVersion} · review v{review.version}</p>
+    </section>
+  );
+}
 
-      {parsed.draftCaseNote && <>
-        <h3>Draft case note <span className="muted small">(edit before filing)</span></h3>
-        <textarea className="note" value={note} onChange={(e) => setNote(e.target.value)} rows={4} />
-        <button className="btn ghost small" onClick={() => navigator.clipboard.writeText(note).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); })}>
+// The analyst's note, saved to the API as they type. It starts from the AI's draft, and the
+// server locks it once the case is approved or rejected.
+function CaseNotePanel({ me, caseId, review, status, onSaved }: {
+  me: Me; caseId: string; review: AiReviewResponse | null; status: string; onSaved: () => Promise<void>;
+}) {
+  const [note, setNote] = useState<CaseNote | null>(null);
+  const [text, setText] = useState("");
+  const [state, setState] = useState<"idle" | "dirty" | "saving" | "error">("idle");
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<number | undefined>(undefined);
+
+  useEffect(() => {
+    api.caseNote(me.username, caseId).then((n) => { setNote(n); setText(n.text); setState("idle"); }, () => setNote(null));
+  }, [me.username, caseId, review?.id, status]);
+
+  const save = useCallback(async (value: string) => {
+    setState("saving");
+    try {
+      const saved = await api.saveCaseNote(me.username, caseId, value, note?.basedOnAiReviewVersion ?? null);
+      setNote(saved);
+      setState((cur) => (cur === "saving" ? "idle" : cur));
+      await onSaved();
+    } catch {
+      setState("error");
+    }
+  }, [me.username, caseId, note?.basedOnAiReviewVersion, onSaved]);
+
+  const onChange = (value: string) => {
+    setText(value);
+    setState("dirty");
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => save(value), 1000);
+  };
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+
+  if (!note) return null;
+  const who = note.updatedByUserId?.replace(/^u-/, "");
+  const label =
+    state === "saving" ? "Saving…"
+    : state === "dirty" ? "Unsaved changes"
+    : state === "error" ? "Couldn't save. Keep typing to retry."
+    : note.source === "Saved" ? `Saved by ${who} at ${new Date(note.updatedAt!).toLocaleTimeString()}`
+    : note.source === "AiDraft" ? `AI draft from review v${note.basedOnAiReviewVersion}. Edit it to make it yours.`
+    : "Not started";
+
+  return (
+    <section className="panel note-panel">
+      <h2>Case note</h2>
+      {note.locked
+        ? <p className="note-locked">{note.text || "No note was filed."}</p>
+        : <textarea className="note" value={text} onChange={(e) => onChange(e.target.value)} onBlur={() => state === "dirty" && save(text)} rows={5} />}
+      <div className="note-foot">
+        <span className={`muted small note-state ${state}`}>{note.locked ? `Locked after the decision. ${label}` : label}</span>
+        <button className="btn ghost small" onClick={() => navigator.clipboard.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); })}>
           {copied ? "Copied" : "Copy note"}
         </button>
-      </>}
-      <p className="ai-meta muted small">{review.modelName} · {review.modelVersion} · review v{review.version}</p>
+      </div>
     </section>
   );
 }

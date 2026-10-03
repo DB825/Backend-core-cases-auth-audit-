@@ -3,7 +3,7 @@ import { api, type AiReviewResponse, type CaseResponse, type Me, type ReviewFind
 import { riskFor } from "./risk";
 import { RecommendationTag, RiskBadge, SeverityTag, StatusTag } from "./Badges";
 
-// NAME_MISMATCH -> "Name mismatch", ID_EXPIRED -> "ID expired".
+// NAME_MISMATCH -> "Name mismatch", EXPIRED_ID -> "Expired id".
 const sentence = (code: string) => {
   const s = code.replace(/_/g, " ").toLowerCase().replace(/\bid\b/g, "ID");
   return s.charAt(0).toUpperCase() + s.slice(1);

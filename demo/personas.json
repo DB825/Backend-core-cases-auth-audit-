@@ -97,8 +97,8 @@
         "recommendation": "Escalate",
         "summary": "The only government ID provided is a passport that expired in June 2024, so identity cannot be verified yet. The date of birth on it was also hard to read.",
         "keyConcerns": [
-          { "text": "Government ID is expired.", "findingCodes": ["ID_EXPIRED"] },
-          { "text": "Date of birth was extracted with low confidence and is unconfirmed.", "findingCodes": ["LOW_CONFIDENCE_FIELD"] }
+          { "text": "Government ID is expired.", "findingCodes": ["EXPIRED_ID"] },
+          { "text": "Date of birth was extracted with low confidence and is unconfirmed.", "findingCodes": ["LOW_CONFIDENCE_EXTRACTION"] }
         ],
         "nextSteps": [
           "Request a current, unexpired government ID.",

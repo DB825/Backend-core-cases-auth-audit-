@@ -20,7 +20,8 @@ export interface DocumentResponse {
 }
 export interface ReviewField {
   id: string; documentId: string; documentType: string; fieldName: string;
-  fieldValue: string; confidence: number | null;
+  // Tax IDs arrive as last four (isMasked); api.revealField returns the full value and is audited.
+  fieldValue: string; isMasked?: boolean; confidence: number | null;
 }
 export interface ReviewFinding {
   id: string; code: string; severity: Severity; score: number | null; message: string;
@@ -30,6 +31,13 @@ export interface AiReviewInput { caseId: string; fields: ReviewField[]; findings
 export interface AiReviewResponse {
   id: string; version: number; modelName: string; modelVersion: string;
   recommendation: "Approve" | "Reject" | "Escalate"; rationale: string; createdAt: string;
+  // Structured output; absent on API builds before it existed.
+  summary?: string | null; keyConcerns?: AiConcern[]; nextSteps?: string[]; draftCaseNote?: string | null;
+}
+export interface AiConcern { text: string; findingCodes: string[] }
+export interface CaseNote {
+  text: string; source: "Saved" | "AiDraft" | "Empty"; basedOnAiReviewVersion: number | null;
+  updatedByUserId: string | null; updatedAt: string | null; locked: boolean;
 }
 export interface DecisionResponse {
   id: string; caseId: string; outcome: DecisionOutcome; aiReviewId: string | null;
@@ -78,6 +86,11 @@ export const api = {
   decide: (u: string, c: CaseResponse, outcome: DecisionOutcome, aiReviewId: string | null, idempotencyKey: string) =>
     request<DecisionResponse>(u, "POST", `/api/cases/${c.id}/decisions`, { outcome, aiReviewId },
       { "Idempotency-Key": idempotencyKey, "If-Match": c.rowVersion }),
+  caseNote: (u: string, id: string) => request<CaseNote>(u, "GET", `/api/cases/${id}/case-note`),
+  saveCaseNote: (u: string, id: string, text: string, basedOnAiReviewVersion: number | null) =>
+    request<CaseNote>(u, "PUT", `/api/cases/${id}/case-note`, { text, basedOnAiReviewVersion }),
+  revealField: (u: string, documentId: string, fieldId: string) =>
+    request<{ id: string; fieldName: string; fieldValue: string }>(u, "POST", `/api/documents/${documentId}/extracted-fields/${fieldId}/reveal`),
   resetDemo: (u: string) => request<{ casesCreated: number }>(u, "POST", "/api/demo/reset"),
   // Needs the GET .../documents/{id}/content endpoint. Returns null if the API predates it.
   documentBlobUrl: async (u: string, caseId: string, docId: string): Promise<string | null> => {
@@ -86,20 +99,20 @@ export const api = {
   },
 };
 
-// Teammate 4's planned output is richer than AiReview's current columns, so the seeded reviews
-// carry it as JSON in `rationale`. Plain-text rationales still render as a summary.
 export interface StructuredReview {
   summary: string;
-  keyConcerns: { text: string; findingCodes: string[] }[];
+  keyConcerns: AiConcern[];
   nextSteps: string[];
-  draftCaseNote: string;
 }
-export function parseRationale(rationale: string): StructuredReview {
+// Prefers the structured columns. Older seeds carried the same shape as JSON in `rationale`, and a
+// plain-text rationale still renders as the summary.
+export function structuredReview(r: AiReviewResponse): StructuredReview {
+  if (r.summary || r.keyConcerns?.length || r.nextSteps?.length) {
+    return { summary: r.summary ?? r.rationale, keyConcerns: r.keyConcerns ?? [], nextSteps: r.nextSteps ?? [] };
+  }
   try {
-    const r = JSON.parse(rationale);
-    if (r && typeof r.summary === "string") {
-      return { summary: r.summary, keyConcerns: r.keyConcerns ?? [], nextSteps: r.nextSteps ?? [], draftCaseNote: r.draftCaseNote ?? "" };
-    }
+    const j = JSON.parse(r.rationale);
+    if (j && typeof j.summary === "string") return { summary: j.summary, keyConcerns: j.keyConcerns ?? [], nextSteps: j.nextSteps ?? [] };
   } catch { /* plain text */ }
-  return { summary: rationale, keyConcerns: [], nextSteps: [], draftCaseNote: "" };
+  return { summary: r.rationale, keyConcerns: [], nextSteps: [] };
 }

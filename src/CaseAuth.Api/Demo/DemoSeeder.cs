@@ -1,4 +1,3 @@
-using System.Text.Json;
 using CaseAuth.Api.Auth;
 using CaseAuth.Api.Data;
 using CaseAuth.Api.Entities;
@@ -139,6 +138,13 @@ public class DemoSeeder(
             Audit(c.Id, "Case.screen");
 
             var r = p.AiReview;
+            var findingCodes = p.Findings.Select(f => f.Code).ToHashSet();
+            var badCitation = r.KeyConcerns.SelectMany(k => k.FindingCodes).FirstOrDefault(code => !findingCodes.Contains(code));
+            if (badCitation is not null)
+            {
+                throw new InvalidOperationException($"Persona '{p.Key}': AI concern cites unknown finding code '{badCitation}'.");
+            }
+
             db.AiReviews.Add(new AiReview
             {
                 Case = c,
@@ -146,8 +152,11 @@ public class DemoSeeder(
                 ModelName = AiModelName,
                 ModelVersion = "personas-1",
                 Recommendation = r.Recommendation,
-                Rationale = JsonSerializer.Serialize(
-                    new { r.Summary, r.KeyConcerns, r.NextSteps, r.DraftCaseNote }, PersonaLoader.JsonOptions),
+                Rationale = r.Summary,
+                Summary = r.Summary,
+                KeyConcerns = r.KeyConcerns.Select(k => new AiConcern(k.Text, k.FindingCodes)).ToList(),
+                NextSteps = r.NextSteps,
+                DraftCaseNote = r.DraftCaseNote,
                 CreatedAt = Tick(),
             });
             Audit(c.Id, "AiReview.Recorded", aiReviewVersion: 1);

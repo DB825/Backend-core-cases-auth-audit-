@@ -8,8 +8,8 @@
 // Needs Node 18+ (built-in fetch/FormData). Run demo/make_specimens.py first so the
 // document images exist. Every run creates new cases; delete the SQLite file to start over.
 //
-// The AI reviews written here are canned stand-ins for Teammate 4's Bedrock output, stored
-// as JSON in the review's rationale until the AiReview contract grows those fields.
+// The AI reviews written here are canned stand-ins for Teammate 4's Bedrock output, recorded
+// through the AiReview contract's structured fields.
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -76,9 +76,11 @@ async function seedPersona(p) {
     modelName: "demo-reviewer (seeded)",
     modelVersion: "personas-1",
     recommendation: r.recommendation,
-    rationale: JSON.stringify({
-      summary: r.summary, keyConcerns: r.keyConcerns, nextSteps: r.nextSteps, draftCaseNote: r.draftCaseNote,
-    }),
+    rationale: r.summary,
+    summary: r.summary,
+    keyConcerns: r.keyConcerns,
+    nextSteps: r.nextSteps,
+    draftCaseNote: r.draftCaseNote,
   });
   await call("POST", `/api/cases/${c.id}/mark-ai-reviewed`);
   await call("POST", `/api/cases/${c.id}/request-decision`);
