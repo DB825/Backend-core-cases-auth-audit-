@@ -15,12 +15,12 @@ namespace CaseAuth.Api.Migrations
                 name: "Applicants",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    FirmId = table.Column<string>(type: "TEXT", nullable: false),
-                    FullName = table.Column<string>(type: "TEXT", nullable: false),
-                    DateOfBirth = table.Column<DateOnly>(type: "TEXT", nullable: true),
-                    Email = table.Column<string>(type: "TEXT", nullable: true),
-                    Phone = table.Column<string>(type: "TEXT", nullable: true)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    FirmId = table.Column<string>(nullable: false),
+                    FullName = table.Column<string>(nullable: false),
+                    DateOfBirth = table.Column<DateOnly>(type: "date", nullable: true),
+                    Email = table.Column<string>(nullable: true),
+                    Phone = table.Column<string>(nullable: true)
                 },
                 constraints: table =>
                 {
@@ -31,17 +31,17 @@ namespace CaseAuth.Api.Migrations
                 name: "AuditEvents",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    CaseId = table.Column<Guid>(type: "TEXT", nullable: true),
-                    FirmId = table.Column<string>(type: "TEXT", nullable: false),
-                    ActorUserId = table.Column<string>(type: "TEXT", nullable: false),
-                    ActorUsername = table.Column<string>(type: "TEXT", nullable: false),
-                    Action = table.Column<string>(type: "TEXT", nullable: false),
-                    Outcome = table.Column<string>(type: "TEXT", nullable: false),
-                    Timestamp = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    CorrelationId = table.Column<string>(type: "TEXT", nullable: false),
-                    AiReviewVersion = table.Column<int>(type: "INTEGER", nullable: true),
-                    Metadata = table.Column<string>(type: "TEXT", nullable: true)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    CaseId = table.Column<Guid>(type: "uuid", nullable: true),
+                    FirmId = table.Column<string>(nullable: false),
+                    ActorUserId = table.Column<string>(nullable: false),
+                    ActorUsername = table.Column<string>(nullable: false),
+                    Action = table.Column<string>(nullable: false),
+                    Outcome = table.Column<string>(nullable: false),
+                    Timestamp = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CorrelationId = table.Column<string>(nullable: false),
+                    AiReviewVersion = table.Column<int>(type: "integer", nullable: true),
+                    Metadata = table.Column<string>(nullable: true)
                 },
                 constraints: table =>
                 {
@@ -52,14 +52,14 @@ namespace CaseAuth.Api.Migrations
                 name: "Cases",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    FirmId = table.Column<string>(type: "TEXT", nullable: false),
-                    ApplicantId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Status = table.Column<string>(type: "TEXT", nullable: false),
-                    CreatedByUserId = table.Column<string>(type: "TEXT", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    RowVersion = table.Column<Guid>(type: "TEXT", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    FirmId = table.Column<string>(nullable: false),
+                    ApplicantId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Status = table.Column<string>(nullable: false),
+                    CreatedByUserId = table.Column<string>(nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    RowVersion = table.Column<Guid>(type: "uuid", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -76,14 +76,14 @@ namespace CaseAuth.Api.Migrations
                 name: "AiReviews",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    CaseId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Version = table.Column<int>(type: "INTEGER", nullable: false),
-                    ModelName = table.Column<string>(type: "TEXT", nullable: false),
-                    ModelVersion = table.Column<string>(type: "TEXT", nullable: false),
-                    Recommendation = table.Column<string>(type: "TEXT", nullable: false),
-                    Rationale = table.Column<string>(type: "TEXT", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    CaseId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Version = table.Column<int>(type: "integer", nullable: false),
+                    ModelName = table.Column<string>(nullable: false),
+                    ModelVersion = table.Column<string>(nullable: false),
+                    Recommendation = table.Column<string>(nullable: false),
+                    Rationale = table.Column<string>(nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -100,15 +100,15 @@ namespace CaseAuth.Api.Migrations
                 name: "Documents",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    CaseId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    FileName = table.Column<string>(type: "TEXT", nullable: false),
-                    ContentType = table.Column<string>(type: "TEXT", nullable: false),
-                    SizeBytes = table.Column<long>(type: "INTEGER", nullable: false),
-                    DocumentType = table.Column<string>(type: "TEXT", nullable: false),
-                    StorageKey = table.Column<string>(type: "TEXT", nullable: false),
-                    UploadedByUserId = table.Column<string>(type: "TEXT", nullable: false),
-                    UploadedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    CaseId = table.Column<Guid>(type: "uuid", nullable: false),
+                    FileName = table.Column<string>(nullable: false),
+                    ContentType = table.Column<string>(nullable: false),
+                    SizeBytes = table.Column<long>(type: "bigint", nullable: false),
+                    DocumentType = table.Column<string>(nullable: false),
+                    StorageKey = table.Column<string>(nullable: false),
+                    UploadedByUserId = table.Column<string>(nullable: false),
+                    UploadedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -125,14 +125,13 @@ namespace CaseAuth.Api.Migrations
                 name: "Findings",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    CaseId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Severity = table.Column<string>(type: "TEXT", nullable: false),
-                    Source = table.Column<string>(type: "TEXT", nullable: false),
-                    Code = table.Column<string>(type: "TEXT", nullable: false),
-                    Message = table.Column<string>(type: "TEXT", nullable: false),
-                    Score = table.Column<double>(type: "REAL", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    CaseId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Severity = table.Column<string>(nullable: false),
+                    Source = table.Column<string>(nullable: false),
+                    Code = table.Column<string>(nullable: false),
+                    Message = table.Column<string>(nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -174,13 +173,13 @@ namespace CaseAuth.Api.Migrations
                 name: "Decisions",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    CaseId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Outcome = table.Column<string>(type: "TEXT", nullable: false),
-                    AiReviewId = table.Column<Guid>(type: "TEXT", nullable: true),
-                    DecidedByUserId = table.Column<string>(type: "TEXT", nullable: false),
-                    IdempotencyKey = table.Column<string>(type: "TEXT", nullable: false),
-                    DecidedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    CaseId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Outcome = table.Column<string>(nullable: false),
+                    AiReviewId = table.Column<Guid>(type: "uuid", nullable: true),
+                    DecidedByUserId = table.Column<string>(nullable: false),
+                    IdempotencyKey = table.Column<string>(nullable: false),
+                    DecidedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -202,12 +201,12 @@ namespace CaseAuth.Api.Migrations
                 name: "ExtractedFields",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    DocumentId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    FieldName = table.Column<string>(type: "TEXT", nullable: false),
-                    FieldValue = table.Column<string>(type: "TEXT", nullable: false),
-                    Confidence = table.Column<double>(type: "REAL", nullable: true),
-                    ExtractedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    DocumentId = table.Column<Guid>(type: "uuid", nullable: false),
+                    FieldName = table.Column<string>(nullable: false),
+                    FieldValue = table.Column<string>(nullable: false),
+                    Confidence = table.Column<double>(nullable: true),
+                    ExtractedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -224,8 +223,8 @@ namespace CaseAuth.Api.Migrations
                 name: "ExtractedFieldFinding",
                 columns: table => new
                 {
-                    FindingId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    SourceFieldsId = table.Column<Guid>(type: "TEXT", nullable: false)
+                    FindingId = table.Column<Guid>(type: "uuid", nullable: false),
+                    SourceFieldsId = table.Column<Guid>(type: "uuid", nullable: false)
                 },
                 constraints: table =>
                 {
