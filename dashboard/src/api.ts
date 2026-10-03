@@ -79,7 +79,7 @@ export const api = {
     request<DecisionResponse>(u, "POST", `/api/cases/${c.id}/decisions`, { outcome, aiReviewId },
       { "Idempotency-Key": idempotencyKey, "If-Match": c.rowVersion }),
   resetDemo: (u: string) => request<{ casesCreated: number }>(u, "POST", "/api/demo/reset"),
-  // Needs the GET .../documents/{id}/content endpoint. Returns null if the API predates it.
+  // Returns null if the file can't be served (missing on disk, or an API that predates the endpoint).
   documentBlobUrl: async (u: string, caseId: string, docId: string): Promise<string | null> => {
     const res = await fetch(`/api/cases/${caseId}/documents/${docId}/content`, { headers: { "X-Dev-User": u } });
     return res.ok ? URL.createObjectURL(await res.blob()) : null;

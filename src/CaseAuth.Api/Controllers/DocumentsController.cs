@@ -43,8 +43,17 @@ public class DocumentsController(
         var document = await db.Documents.FirstOrDefaultAsync(d => d.Id == documentId && d.CaseId == caseId, ct)
             ?? throw new NotFoundApiException($"Document '{documentId}' was not found.");
 
-        var stream = await storage.OpenReadAsync(document.StorageKey, ct);
-        return File(stream, document.ContentType);
+        // A row whose file has gone missing (fixture folder wiped, half-restored backup) is a
+        // 404 for the reviewer, not a 500.
+        try
+        {
+            var stream = await storage.OpenReadAsync(document.StorageKey, ct);
+            return File(stream, document.ContentType);
+        }
+        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+        {
+            throw new NotFoundApiException($"The stored file for document '{documentId}' is missing.");
+        }
     }
 
     [HttpPost]
