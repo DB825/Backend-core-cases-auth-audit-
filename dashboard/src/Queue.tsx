@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, type AiReviewResponse, type CaseResponse, type Me, type ReviewFinding } from "./api";
-import { riskFor } from "./risk";
+import { bySeriousness, riskFor } from "./risk";
 import { RecommendationTag, RiskBadge, SeverityTag, StatusTag } from "./Badges";
 
-// NAME_MISMATCH -> "Name mismatch", EXPIRED_ID -> "Expired id".
+// NAME_MISMATCH -> "Name mismatch", OFAC_POTENTIAL_MATCH -> "OFAC potential match".
+const ACRONYMS = /\b(id|ofac|po|dob|tin)\b/g;
 const sentence = (code: string) => {
-  const s = code.replace(/_/g, " ").toLowerCase().replace(/\bid\b/g, "ID");
+  const s = code.replace(/_/g, " ").toLowerCase().replace(ACRONYMS, (w) => w.toUpperCase());
   return s.charAt(0).toUpperCase() + s.slice(1);
 };
 
@@ -50,7 +51,7 @@ export default function Queue({ me }: { me: Me }) {
       const loaded = await Promise.all(cases.map(async (c) => {
         const [input, reviews] = await Promise.all([api.reviewInput(me.username, c.id), api.aiReviews(me.username, c.id)]);
         const review = reviews.reduce<AiReviewResponse | null>((a, r) => (!a || r.version > a.version ? r : a), null);
-        return { c, findings: input.findings, review, risk: riskFor(c, input.findings) };
+        return { c, findings: input.findings, review, risk: riskFor(c) };
       }));
       loaded.sort((a, b) => b.risk.score - a.risk.score);
       setRows(loaded);
@@ -110,7 +111,7 @@ export default function Queue({ me }: { me: Me }) {
           </thead>
           <tbody>
             {visible.map(({ c, findings, review, risk }) => {
-              const top = [...findings].sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0];
+              const top = [...findings].sort(bySeriousness)[0];
               return (
                 <tr key={c.id} onClick={() => (window.location.hash = `#/cases/${c.id}`)} tabIndex={0}
                   onKeyDown={(e) => e.key === "Enter" && (window.location.hash = `#/cases/${c.id}`)}>

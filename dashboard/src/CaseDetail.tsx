@@ -3,7 +3,7 @@ import {
   api, structuredReview, type AiReviewInput, type AiReviewResponse, type AuditEventResponse, type CaseResponse,
   type CaseNote, type DecisionOutcome, type DecisionResponse, type DocumentResponse, type Me, type ReviewField, type Severity,
 } from "./api";
-import { LOW_CONFIDENCE, riskFor } from "./risk";
+import { bySeriousness, LOW_CONFIDENCE, riskFor } from "./risk";
 import { RecommendationTag, RiskBadge, SeverityTag, StatusTag } from "./Badges";
 
 interface Data {
@@ -18,7 +18,10 @@ interface Data {
 const SEV_RANK: Record<Severity, number> = { Low: 1, Medium: 2, High: 3 };
 // Short all-caps names are acronyms (TIN, DOB): keep them as-is.
 const pretty = (s: string) => (/^[A-Z]{2,4}$/.test(s) ? s : s.replace(/_/g, " ").toLowerCase());
-const DOC_TYPE_LABEL: Record<string, string> = { GovernmentId: "Government ID", ProofOfAddress: "Proof of address", Financial: "Financial", Other: "Other" };
+const DOC_TYPE_LABEL: Record<string, string> = {
+  GovernmentId: "Government ID", ProofOfAddress: "Proof of address", Financial: "Financial", Other: "Other",
+  Application: "Application", W9: "Tax form", BeneficialOwnership: "Beneficial ownership", FormationDocument: "Formation document",
+};
 
 export default function CaseDetail({ me, caseId }: { me: Me; caseId: string }) {
   const [data, setData] = useState<Data | null>(null);
@@ -57,7 +60,7 @@ export default function CaseDetail({ me, caseId }: { me: Me; caseId: string }) {
   if (!data) return <div className="loading">Loading case…</div>;
 
   const { c, docs, input, review, decisions, audit } = data;
-  const risk = riskFor(c, input.findings);
+  const risk = riskFor(c);
   const activeFieldIds = new Set(input.findings.find((f) => f.id === activeFinding)?.sourceFieldIds ?? []);
   const docFields = input.fields.filter((f) => f.documentId === docId);
   const fieldsByDoc = (id: string) => input.fields.filter((f) => f.documentId === id);
@@ -124,15 +127,16 @@ export default function CaseDetail({ me, caseId }: { me: Me; caseId: string }) {
       <div className="two-col">
         <section className="panel">
           <h2>Rule findings <span className="count">{input.findings.length}</span></h2>
-          <p className="muted small">Deterministic checks. Select one to highlight the fields it cites.</p>
+          <p className="muted small">Raised by the rules engine, not the AI. Select one to highlight the fields it cites.</p>
+          {input.findings.length === 0 && <p className="no-flags">No flags. Every rule passed, including the sanctions screen.</p>}
           <ul className="findings">
-            {[...input.findings].sort((a, b) => (b.score ?? 0) - (a.score ?? 0)).map((f) => (
+            {[...input.findings].sort(bySeriousness).map((f) => (
               <li key={f.id}>
                 <button className={activeFinding === f.id ? "finding active" : "finding"} onClick={() => focusFinding(f.id)}>
                   <div className="finding-top">
                     <SeverityTag severity={f.severity} />
                     <span className="finding-code">{f.code}</span>
-                    {f.score !== null && <span className="finding-score">score {f.score.toFixed(2)}</span>}
+                    {f.score !== null && f.score < 1 && <span className="finding-score">partial match ({f.score})</span>}
                   </div>
                   <p>{f.message}</p>
                 </button>

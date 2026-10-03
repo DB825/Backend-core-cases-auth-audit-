@@ -11,7 +11,7 @@ export interface Me { userId: string; username: string; firmId: string; role: st
 export interface CaseResponse {
   id: string; firmId: string; status: CaseStatus; applicantFullName: string;
   createdByUserId: string; createdAt: string; updatedAt: string; rowVersion: string;
-  // Server-computed from the findings' rule scores; absent on older API builds.
+  // The rules engine's weighted score for the case's findings, in points, and its tier.
   riskScore?: number; riskTier?: Severity;
 }
 export interface DocumentResponse {

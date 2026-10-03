@@ -114,40 +114,41 @@ public class ReviewWorkspaceTests(ApiFactory factory) : IClassFixture<ApiFactory
     }
 
     [Fact]
-    public async Task TaxId_IsMaskedEverywhere_AndRevealIsAudited()
+    public async Task FullTaxId_IsMaskedEverywhere_AndRevealIsAudited()
     {
-        var cases = await ResetAsync();
+        // The demo personas only carry tin_last4, as the rules engine expects; this covers an
+        // extractor that records a full TIN anyway.
         var analyst = ClientFor("analyst1");
-        var clean = cases.Single(c => c.ApplicantFullName == "Maria Elena Torres");
-        var docs = (await analyst.GetFromJsonAsync<List<DocumentResponse>>($"/api/cases/{clean.Id}/documents", JsonOptions))!;
-
-        var allFields = new List<(Guid DocumentId, ExtractedFieldResponse Field)>();
-        foreach (var d in docs)
-        {
-            var fields = (await analyst.GetFromJsonAsync<List<ExtractedFieldResponse>>($"/api/documents/{d.Id}/extracted-fields", JsonOptions))!;
-            allFields.AddRange(fields.Select(f => (d.Id, f)));
-        }
-
-        var (docId, tin) = allFields.Single(x => x.Field.FieldName == "TIN");
+        var created = await analyst.PostAsJsonAsync("/api/cases", new CreateCaseRequest("Tax Id Case", null, null, null));
+        var c = (await created.Content.ReadFromJsonAsync<CaseResponse>(JsonOptions))!;
+        var png = new ByteArrayContent([0x89, 0x50, 0x4E, 0x47]);
+        png.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
+        using var upload = new MultipartFormDataContent { { new StringContent("W9"), "documentType" }, { png, "file", "w9.png" } };
+        var doc = (await (await analyst.PostAsync($"/api/cases/{c.Id}/documents", upload)).Content.ReadFromJsonAsync<DocumentResponse>(JsonOptions))!;
+        var recorded = await analyst.PostAsJsonAsync($"/api/documents/{doc.Id}/extracted-fields", new CreateExtractedFieldsRequest(
+            [new ExtractedFieldInput("TIN", "987-65-4320", 0.97), new ExtractedFieldInput("FULL_NAME", "TAX ID CASE", 0.97)]));
+        var fields = (await recorded.Content.ReadFromJsonAsync<List<ExtractedFieldResponse>>(JsonOptions))!;
+        var tin = fields.Single(f => f.FieldName == "TIN");
         Assert.True(tin.IsMasked);
         Assert.Equal("•••••4320", tin.FieldValue);
-        Assert.DoesNotContain(allFields, x => x.Field.FieldValue.Contains("987-65-4320"));
 
-        var input = (await analyst.GetFromJsonAsync<AiReviewInputResponse>($"/api/cases/{clean.Id}/ai-review-input", JsonOptions))!;
+        var listed = (await analyst.GetFromJsonAsync<List<ExtractedFieldResponse>>($"/api/documents/{doc.Id}/extracted-fields", JsonOptions))!;
+        Assert.DoesNotContain(listed, f => f.FieldValue.Contains("987-65-4320"));
+        var input = (await analyst.GetFromJsonAsync<AiReviewInputResponse>($"/api/cases/{c.Id}/ai-review-input", JsonOptions))!;
         Assert.Equal("•••••4320", input.Fields.Single(f => f.FieldName == "TIN").FieldValue);
 
-        var reveal = await analyst.PostAsync($"/api/documents/{docId}/extracted-fields/{tin.Id}/reveal", null);
+        var reveal = await analyst.PostAsync($"/api/documents/{doc.Id}/extracted-fields/{tin.Id}/reveal", null);
         Assert.Equal(HttpStatusCode.OK, reveal.StatusCode);
         Assert.Equal("987-65-4320", (await reveal.Content.ReadFromJsonAsync<RevealedFieldResponse>(JsonOptions))!.FieldValue);
-        var revealEvent = Assert.Single((await AuditAsync(analyst, clean.Id))!, e => e.Action == "ExtractedField.Revealed");
+        var revealEvent = Assert.Single((await AuditAsync(analyst, c.Id))!, e => e.Action == "ExtractedField.Revealed");
         Assert.Equal("analyst1", revealEvent.ActorUsername);
 
         // Only masked fields can be revealed, and only within the caller's firm.
-        var (nameDoc, name) = allFields.First(x => !x.Field.IsMasked);
+        var name = fields.Single(f => !f.IsMasked);
         Assert.Equal(HttpStatusCode.NotFound,
-            (await analyst.PostAsync($"/api/documents/{nameDoc}/extracted-fields/{name.Id}/reveal", null)).StatusCode);
+            (await analyst.PostAsync($"/api/documents/{doc.Id}/extracted-fields/{name.Id}/reveal", null)).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound,
-            (await ClientFor("analyst2").PostAsync($"/api/documents/{docId}/extracted-fields/{tin.Id}/reveal", null)).StatusCode);
+            (await ClientFor("analyst2").PostAsync($"/api/documents/{doc.Id}/extracted-fields/{tin.Id}/reveal", null)).StatusCode);
     }
 
     [Fact]

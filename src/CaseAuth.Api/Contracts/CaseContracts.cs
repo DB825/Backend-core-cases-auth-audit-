@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using CaseAuth.Api.Entities;
+using CaseAuth.Api.Screening;
 using CaseAuth.Api.Services;
 
 namespace CaseAuth.Api.Contracts;
@@ -20,16 +21,17 @@ public record CaseResponse(
     DateTime CreatedAt,
     DateTime UpdatedAt,
     Guid RowVersion,
-    // Combined rule score across the case's findings (0-1) and its tier - see Services/CaseRisk.
+    // The rules engine's weighted score for the case's findings (points: Medium from 20, High from
+    // 50 by default) and its tier - see Services/CaseRisk.
     double RiskScore,
     FindingSeverity RiskTier)
 {
-    public static CaseResponse From(Case c, IEnumerable<double?> findingScores)
+    public static CaseResponse From(Case c, IEnumerable<(string Code, double? Score)> findings, ScreeningOptions options)
     {
-        var riskScore = CaseRisk.Score(findingScores);
+        var riskScore = CaseRisk.Score(findings, options);
         return new(
             c.Id, c.FirmId, c.Status, c.Applicant!.FullName, c.CreatedByUserId, c.CreatedAt, c.UpdatedAt, c.RowVersion,
-            riskScore, CaseRisk.Tier(riskScore));
+            riskScore, CaseRisk.Tier(riskScore, options));
     }
 }
 

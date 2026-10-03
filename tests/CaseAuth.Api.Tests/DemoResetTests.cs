@@ -50,16 +50,32 @@ public class DemoResetTests(ApiFactory factory) : IClassFixture<ApiFactory>
         Assert.DoesNotContain(cases, c => c.Id == staleCase.Id);
         Assert.All(cases, c => Assert.Equal(CaseStatus.AwaitingDecision, c.Status));
 
-        // Risk comes back on the case itself: the shell company is High, the clean applicant Low.
-        Assert.Equal(FindingSeverity.High, cases.Single(c => c.ApplicantFullName == "Bluewater Meridian Holdings LLC").RiskTier);
-        Assert.Equal(FindingSeverity.Low, cases.Single(c => c.ApplicantFullName == "Maria Elena Torres").RiskTier);
+        // The rules engine raised the flags, and the case risk is the engine's weighted score.
+        var byName = cases.ToDictionary(c => c.ApplicantFullName);
+        Assert.Equal(FindingSeverity.High, byName["Bluewater Meridian Holdings LLC"].RiskTier);
+        Assert.Equal(FindingSeverity.High, byName["Ruslan Tarkhovsky"].RiskTier);
+        Assert.Equal(FindingSeverity.Medium, byName["John Smith"].RiskTier);
+        Assert.Equal(0, byName["Maria Elena Torres"].RiskScore);
 
-        // Seeded findings cite real extracted fields, and the document images are readable.
-        var shell = cases.Single(c => c.ApplicantFullName == "Bluewater Meridian Holdings LLC");
-        var input = (await analyst.GetFromJsonAsync<AiReviewInputResponse>($"/api/cases/{shell.Id}/ai-review-input", JsonOptions))!;
-        Assert.All(input.Findings, f => Assert.NotEmpty(f.SourceFieldIds));
-        var docs = (await analyst.GetFromJsonAsync<List<DocumentResponse>>($"/api/cases/{shell.Id}/documents", JsonOptions))!;
-        var image = await analyst.GetAsync($"/api/cases/{shell.Id}/documents/{docs[0].Id}/content");
+        async Task<AiReviewInputResponse> InputFor(string name) =>
+            (await analyst.GetFromJsonAsync<AiReviewInputResponse>($"/api/cases/{byName[name].Id}/ai-review-input", JsonOptions))!;
+
+        Assert.Empty((await InputFor("Maria Elena Torres")).Findings);
+        var smith = await InputFor("John Smith");
+        var nameMismatch = smith.Findings.Single(f => f.Code == "NAME_MISMATCH");
+        Assert.Contains(smith.Fields, f => nameMismatch.SourceFieldIds.Contains(f.Id) && f.FieldValue == "JOHN SMYTH");
+        Assert.Contains(smith.Findings, f => f.Code == "SHARED_PHONE");
+        Assert.Contains((await InputFor("Ruslan Tarkhovsky")).Findings, f => f.Code == "OFAC_POTENTIAL_MATCH");
+        Assert.Contains((await InputFor("Aisha Rahman")).Findings, f => f.Code == "DOCUMENT_EXPIRED");
+        var shell = await InputFor("Bluewater Meridian Holdings LLC");
+        Assert.Contains(shell.Findings, f => f.Code == "MISSING_BENEFICIAL_OWNER");
+        Assert.Contains(shell.Findings, f => f.Code == "REGISTERED_AGENT_ADDRESS");
+
+        // Document images are readable.
+        var shellCase = byName["Bluewater Meridian Holdings LLC"];
+        var docs = (await analyst.GetFromJsonAsync<List<DocumentResponse>>($"/api/cases/{shellCase.Id}/documents", JsonOptions))!;
+        Assert.Equal(4, docs.Count);
+        var image = await analyst.GetAsync($"/api/cases/{shellCase.Id}/documents/{docs[0].Id}/content");
         Assert.Equal("image/png", image.Content.Headers.ContentType?.MediaType);
 
         // Another firm's cases are untouched.
@@ -68,7 +84,7 @@ public class DemoResetTests(ApiFactory factory) : IClassFixture<ApiFactory>
     }
 
     [Fact]
-    public async Task CaseRisk_CombinesFindingScores()
+    public async Task CaseRisk_IsTheRulesEnginesWeightedScore()
     {
         var analyst = ClientFor("analyst1");
         var created = await analyst.PostAsJsonAsync("/api/cases", new CreateCaseRequest("Risk Case", null, null, null));
@@ -76,14 +92,16 @@ public class DemoResetTests(ApiFactory factory) : IClassFixture<ApiFactory>
         Assert.Equal(0, c.RiskScore);
         Assert.Equal(FindingSeverity.Low, c.RiskTier);
 
-        foreach (var score in new[] { 0.5, 0.5 })
+        // Default weights: NAME_MISMATCH 25, ADDRESS_MISMATCH 10. A code that isn't an engine rule
+        // carries no weight.
+        foreach (var (code, score) in new[] { ("NAME_MISMATCH", 0.5), ("ADDRESS_MISMATCH", 1.0), ("ANALYST_NOTE", 1.0) })
         {
             await analyst.PostAsJsonAsync($"/api/cases/{c.Id}/findings",
-                new CreateFindingRequest(FindingSeverity.Medium, FindingSource.Ai, "TEST", "test", score, null));
+                new CreateFindingRequest(FindingSeverity.Medium, FindingSource.Manual, code, "test", score, null));
         }
 
         var updated = (await analyst.GetFromJsonAsync<CaseResponse>($"/api/cases/{c.Id}", JsonOptions))!;
-        Assert.Equal(0.75, updated.RiskScore, precision: 6);
+        Assert.Equal(22.5, updated.RiskScore, precision: 6);
         Assert.Equal(FindingSeverity.Medium, updated.RiskTier);
     }
 }

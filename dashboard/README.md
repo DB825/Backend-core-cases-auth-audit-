@@ -34,8 +34,8 @@ the Docker container instead.
 
 ## Stand-ins until the backend catches up
 
-- **Risk score** comes from the API (`riskScore` / `riskTier` on each case). Against an older
-  API build without those fields, `src/risk.ts` computes the same number in the browser.
+- **Risk score** comes from the API (`riskScore` / `riskTier` on each case): the rules engine's
+  weighted score, in points.
 - **Structured AI review** (summary, key concerns, next steps) comes from the review's own
   fields. Reviews recorded before those fields existed fall back to JSON in `rationale`, and
   plain-text rationales still render.

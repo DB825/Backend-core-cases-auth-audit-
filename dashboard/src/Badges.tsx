@@ -2,8 +2,8 @@ import type { Severity } from "./api";
 
 export function RiskBadge({ score, tier }: { score: number; tier: Severity }) {
   return (
-    <span className={`risk risk-${tier.toLowerCase()}`} title="Combined rule score across all findings">
-      <span className="risk-score">{Math.round(score * 100)}</span>
+    <span className={`risk risk-${tier.toLowerCase()}`} title="Rules engine score: each flag's weight times its risk. Medium from 20, High from 50.">
+      <span className="risk-score">{Math.round(score)}</span>
       <span className="risk-tier">{tier}</span>
     </span>
   );

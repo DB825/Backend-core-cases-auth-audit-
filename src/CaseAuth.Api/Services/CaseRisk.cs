@@ -1,22 +1,24 @@
 using CaseAuth.Api.Entities;
+using CaseAuth.Api.Screening;
 
 namespace CaseAuth.Api.Services;
 
-// Case-level risk, derived from the per-finding rule scores (Teammate 3's weighted-sum scores).
-// Independent findings compound - 1 - product of (1 - score) - so two medium findings outrank one,
-// and a case with no scored findings is 0. Computed on read rather than stored, so it can never
-// drift from the findings it summarizes; replace with the rules engine's own case score once it
-// produces one.
+// Case-level risk, scored the same way the rules engine scores a screening run: the sum of each
+// finding's rule weight times its risk (Finding.Score), with the engine's Medium/High thresholds.
+// So the queue's number always matches the engine's TotalScore for the same findings. Findings
+// whose code isn't an engine rule (a manual analyst note, say) carry no weight. Computed on read
+// rather than stored, so it can't drift from the findings it summarizes.
 public static class CaseRisk
 {
-    public const double HighThreshold = 0.8;
-    public const double MediumThreshold = 0.4;
+    public static double Score(IEnumerable<(string Code, double? Score)> findings, ScreeningOptions options) =>
+        findings
+            .Where(f => options.Rules.ContainsKey(f.Code))
+            .GroupBy(f => f.Code)
+            // The engine raises each rule at most once per run, at its highest risk.
+            .Sum(g => options.Rules[g.Key].Weight * g.Max(f => Math.Clamp(f.Score ?? 1, 0, 1)));
 
-    public static double Score(IEnumerable<double?> findingScores) =>
-        1 - findingScores.Aggregate(1.0, (acc, s) => acc * (1 - Math.Clamp(s ?? 0, 0, 1)));
-
-    public static FindingSeverity Tier(double score) =>
-        score >= HighThreshold ? FindingSeverity.High
-        : score >= MediumThreshold ? FindingSeverity.Medium
+    public static FindingSeverity Tier(double score, ScreeningOptions options) =>
+        score >= options.HighThreshold ? FindingSeverity.High
+        : score >= options.MediumThreshold ? FindingSeverity.Medium
         : FindingSeverity.Low;
 }

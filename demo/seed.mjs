@@ -18,8 +18,8 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const base = (process.env.API_BASE ?? "http://localhost:5020").replace(/\/$/, "");
 const analyst = process.env.SEED_USER ?? "analyst1";
 
-async function call(method, url, body, { form } = {}) {
-  const headers = { "X-Dev-User": analyst };
+async function call(method, url, body, { form, headers: extra = {} } = {}) {
+  const headers = { "X-Dev-User": analyst, ...extra };
   let payload;
   if (form) {
     payload = form;
@@ -35,16 +35,17 @@ async function call(method, url, body, { form } = {}) {
   return text ? JSON.parse(text) : null;
 }
 
-async function seedPersona(p) {
+// Pass 1: case, documents and extracted fields. Every persona is loaded before any screening so
+// the shared-contact rule can see the other cases.
+async function loadPersona(p) {
   const c = await call("POST", "/api/cases", {
     applicantFullName: p.applicant.fullName,
     applicantDateOfBirth: p.applicant.dateOfBirth ?? null,
     applicantEmail: p.applicant.email ?? null,
     applicantPhone: p.applicant.phone ?? null,
+    applicantKind: p.applicant.kind ?? "Individual",
   });
 
-  // "docKey.FIELD_NAME" -> extracted field id, so findings can cite their source fields.
-  const fieldIds = {};
   for (const doc of p.documents) {
     const bytes = await readFile(path.join(here, "specimens", doc.file));
     const form = new FormData();
@@ -52,29 +53,32 @@ async function seedPersona(p) {
     // Upload under the document's title so the dashboard tabs read "Form W-9", not a file slug.
     form.append("file", new Blob([bytes], { type: "image/png" }), `${doc.title}.png`);
     const uploaded = await call("POST", `/api/cases/${c.id}/documents`, undefined, { form });
-
-    const fields = await call("POST", `/api/documents/${uploaded.id}/extracted-fields`, {
+    await call("POST", `/api/documents/${uploaded.id}/extracted-fields`, {
       fields: doc.fields.map((f) => ({ fieldName: f.name, fieldValue: f.value, confidence: f.confidence })),
     });
-    for (const f of fields) fieldIds[`${doc.key}.${f.fieldName}`] = f.id;
   }
   await call("POST", `/api/cases/${c.id}/extract`);
+  return c;
+}
 
-  for (const f of p.findings) {
-    const sourceFieldIds = f.fields.map((k) => {
-      if (!fieldIds[k]) throw new Error(`${p.key}: finding ${f.code} cites unknown field ${k}`);
-      return fieldIds[k];
-    });
-    await call("POST", `/api/cases/${c.id}/findings`, {
-      severity: f.severity, source: "Ai", code: f.code, message: f.message, score: f.score, sourceFieldIds,
-    });
+// Pass 2: the API's rules engine flags the case through a Screen pipeline job, then the canned AI
+// review is recorded. The API rejects a review that cites a flag the engine didn't raise.
+async function screenAndReview(p, c) {
+  const job = await call("POST", `/api/cases/${c.id}/pipeline-jobs`, { jobType: "Screen" },
+    { headers: { "Idempotency-Key": `seed-screen-${c.id}` } });
+  for (let i = 0; ; i++) {
+    const jobs = await call("GET", `/api/cases/${c.id}/pipeline-jobs`);
+    const current = jobs.find((j) => j.id === job.id);
+    if (current?.status === "Completed") break;
+    if (current?.status === "Failed") throw new Error(`${p.key}: screening failed: ${current.error}`);
+    if (i > 60) throw new Error(`${p.key}: screening didn't finish; is the API's pipeline worker running?`);
+    await new Promise((r) => setTimeout(r, 500));
   }
-  await call("POST", `/api/cases/${c.id}/screen`);
 
   const r = p.aiReview;
   await call("POST", `/api/cases/${c.id}/ai-reviews`, {
     modelName: "demo-reviewer (seeded)",
-    modelVersion: "personas-1",
+    modelVersion: "personas-2",
     recommendation: r.recommendation,
     rationale: r.summary,
     summary: r.summary,
@@ -84,12 +88,13 @@ async function seedPersona(p) {
   });
   await call("POST", `/api/cases/${c.id}/mark-ai-reviewed`);
   await call("POST", `/api/cases/${c.id}/request-decision`);
-  return c;
 }
 
 const { personas } = JSON.parse(await readFile(path.join(here, "personas.json"), "utf8"));
-for (const p of personas) {
-  const c = await seedPersona(p);
+const loaded = [];
+for (const p of personas) loaded.push([p, await loadPersona(p)]);
+for (const [p, c] of loaded) {
+  await screenAndReview(p, c);
   console.log(`seeded ${p.key.padEnd(10)} ${c.id}  ${p.applicant.fullName}`);
 }
 console.log(`\n${personas.length} cases are AwaitingDecision for ${analyst}'s firm.`);

@@ -5,7 +5,8 @@ using CaseAuth.Api.Entities;
 namespace CaseAuth.Api.Demo;
 
 // The shape of demo/personas.json - the same file demo/seed.mjs loads over HTTP and that the
-// other modules use as test fixtures. Everything in it is synthetic.
+// other modules use as test fixtures. Everything in it is synthetic. There are no findings in it:
+// the rules engine produces them from the fields, and each AI review may only cite what it raised.
 public record PersonaFile(List<Persona> Personas);
 
 public record Persona(
@@ -13,17 +14,14 @@ public record Persona(
     string Label,
     PersonaApplicant Applicant,
     List<PersonaDocument> Documents,
-    List<PersonaFinding> Findings,
     PersonaAiReview AiReview);
 
-public record PersonaApplicant(string FullName, DateOnly? DateOfBirth, string? Email, string? Phone);
+public record PersonaApplicant(
+    string FullName, DateOnly? DateOfBirth, string? Email, string? Phone, ApplicantKind Kind = ApplicantKind.Individual);
 
 public record PersonaDocument(string Key, DocumentType Type, string Title, string File, List<PersonaField> Fields);
 
 public record PersonaField(string Name, string Value, double? Confidence);
-
-// `Fields` are "docKey.FIELD_NAME" references into the persona's own documents.
-public record PersonaFinding(string Code, FindingSeverity Severity, double? Score, string Message, List<string> Fields);
 
 public record PersonaAiReview(
     AiRecommendation Recommendation,

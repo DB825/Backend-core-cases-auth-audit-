@@ -138,8 +138,10 @@ images, findings, AI review, decision buttons and audit trail). `demo/` holds fi
 applicant personas and a script that loads them into a running API. See
 `dashboard/README.md` and `demo/README.md`.
 
-Cases carry a server-computed `riskScore` (0-1, combining every finding's rule score) and
-`riskTier` (Low/Medium/High), so any client can sort a queue by risk. In Development a
+Cases carry a server-computed `riskScore` and `riskTier` (Low/Medium/High), so any client can
+sort a queue by risk. The score is the rules engine's own weighted score for the case's findings
+(each rule's weight times its risk; Medium from 20, High from 50 by default), so the queue and the
+engine never disagree. In Development a
 supervisor can `POST /api/demo/reset` to replace their firm's cases with the demo personas.
 
 Review workspace endpoints:
