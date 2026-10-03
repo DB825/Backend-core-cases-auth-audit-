@@ -11,39 +11,43 @@ namespace CaseAuth.Api.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            // No explicit column types: the same migration runs on SQLite locally and Postgres in
-            // deployment, so each provider picks its own (uuid, timestamp with time zone, ...).
+            // Postgres type names, as in InitialCreate: deployment runs on Postgres, and SQLite
+            // accepts any type name, so the same migration works locally too.
             migrationBuilder.AddColumn<string>(
                 name: "DraftCaseNote",
                 table: "AiReviews",
+                type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "KeyConcerns",
                 table: "AiReviews",
+                type: "text",
                 nullable: false,
                 defaultValue: "[]");
 
             migrationBuilder.AddColumn<string>(
                 name: "NextSteps",
                 table: "AiReviews",
+                type: "text",
                 nullable: false,
                 defaultValue: "[]");
 
             migrationBuilder.AddColumn<string>(
                 name: "Summary",
                 table: "AiReviews",
+                type: "text",
                 nullable: true);
 
             migrationBuilder.CreateTable(
                 name: "CaseNotes",
                 columns: table => new
                 {
-                    CaseId = table.Column<Guid>(nullable: false),
-                    Text = table.Column<string>(nullable: false),
-                    BasedOnAiReviewVersion = table.Column<int>(nullable: true),
-                    UpdatedByUserId = table.Column<string>(nullable: false),
-                    UpdatedAt = table.Column<DateTime>(nullable: false)
+                    CaseId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Text = table.Column<string>(type: "text", nullable: false),
+                    BasedOnAiReviewVersion = table.Column<int>(type: "integer", nullable: true),
+                    UpdatedByUserId = table.Column<string>(type: "text", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
