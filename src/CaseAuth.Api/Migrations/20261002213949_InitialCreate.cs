@@ -148,15 +148,15 @@ namespace CaseAuth.Api.Migrations
                 name: "ProcessingJobs",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    CaseId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    JobType = table.Column<string>(type: "TEXT", nullable: false),
-                    Status = table.Column<string>(type: "TEXT", nullable: false),
-                    Attempts = table.Column<int>(type: "INTEGER", nullable: false),
-                    Error = table.Column<string>(type: "TEXT", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    StartedAt = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    CompletedAt = table.Column<DateTime>(type: "TEXT", nullable: true)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    CaseId = table.Column<Guid>(type: "uuid", nullable: false),
+                    JobType = table.Column<string>(nullable: false),
+                    Status = table.Column<string>(nullable: false),
+                    Attempts = table.Column<int>(type: "integer", nullable: false),
+                    Error = table.Column<string>(nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    StartedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    CompletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
                 constraints: table =>
                 {
