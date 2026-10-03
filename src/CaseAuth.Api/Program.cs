@@ -63,13 +63,29 @@ builder.Services.AddScoped<IFileStorageService>(sp =>
 });
 
 // --- Background pipeline ---------------------------------------------------------------
-// FixtureDocumentExtractor/FixtureScreeningService/DeterministicAiReviewer are placeholders -
-// Teammates 1/3/4 swap these for their real implementations via DI, the same pattern as
-// IFileStorageService above. See Pipeline/ for details.
+// FixtureDocumentExtractor/FixtureScreeningService are still placeholders for Teammates 1/3 -
+// same DI-swap pattern as IFileStorageService above. IAiReviewer (Teammate 4) now points at the
+// real AI Review Agent service by default; AiReviewAgent:Mode=Deterministic switches back to
+// the escalate-only stub for demoing without that service running.
 builder.Services.Configure<PipelineOptions>(builder.Configuration.GetSection(PipelineOptions.SectionName));
 builder.Services.AddScoped<IDocumentExtractor, FixtureDocumentExtractor>();
 builder.Services.AddScoped<IScreeningService, FixtureScreeningService>();
-builder.Services.AddScoped<IAiReviewer, DeterministicAiReviewer>();
+
+builder.Services.Configure<AiReviewAgentOptions>(builder.Configuration.GetSection(AiReviewAgentOptions.SectionName));
+builder.Services.AddHttpClient<RemoteAiReviewer>((sp, client) =>
+{
+    var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<AiReviewAgentOptions>>().Value;
+    client.BaseAddress = new Uri(options.BaseUrl);
+    client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
+});
+builder.Services.AddScoped<IAiReviewer>(sp =>
+{
+    var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<AiReviewAgentOptions>>().Value;
+    return string.Equals(options.Mode, "Deterministic", StringComparison.OrdinalIgnoreCase)
+        ? new DeterministicAiReviewer()
+        : sp.GetRequiredService<RemoteAiReviewer>();
+});
+
 builder.Services.AddScoped<IPipelineJobProcessor, PipelineJobProcessor>();
 builder.Services.AddHostedService<PipelineBackgroundService>();
 

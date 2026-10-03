@@ -55,9 +55,11 @@ the `IFileStorageService`-style swap-via-DI pattern already used for storage:
   (`FixtureDocumentExtractor`) returns no fields.
 - `IScreeningService` (Teammate 3: the rules engine) - registered stub
   (`FixtureScreeningService`) returns no findings.
-- `IAiReviewer` (Teammate 4: `BedrockReviewer`/`DeterministicReviewer`) - registered stub
-  (`DeterministicAiReviewer`) recommends `Escalate`, never `Approve`, so a missing/misconfigured
-  reviewer can never look like a clean approval.
+- `IAiReviewer` (Teammate 4) - now wired to the real **AI Review Agent** service
+  (`../AI-Review-Agent`) via `RemoteAiReviewer` (`Pipeline/RemoteAiReviewer.cs`), not a stub.
+  `AiReviewAgent:Mode` in `appsettings.json` (default `Remote`) can be set to `Deterministic` to
+  fall back to the old escalate-only `DeterministicAiReviewer` - a labeled demo provider for
+  running without that service up. See "Connecting the AI Review Agent" below.
 
 **These interface signatures are guesses** at what each teammate's real implementation needs -
 expect them to change once Teammates 1/3/4 are actually building against them. Verified by
@@ -78,6 +80,36 @@ The `Dockerfile` builds and runs correctly, but **the container won't start at a
 `Program.cs` refuses to register the dev-only auth handler there (on purpose, since there's no
 real auth yet). Whoever wires up the Kubernetes manifests needs that env var in the
 Deployment/ConfigMap for now, until real authentication exists.
+
+## Connecting the AI Review Agent
+
+`AiReview` jobs now call the real [AI Review Agent](../AI-Review-Agent) service over HTTP
+instead of a stub. `RemoteAiReviewer` builds its request from this API's own data (the same
+fields+findings `GET /api/cases/{caseId}/ai-review-input` assembles) and maps the response back
+into this API's thinner `AiReview` row - `Rationale` carries a flattened version of the agent's
+richer output (summary, key concerns, next steps, confidence, fallback status) until `AiReview`
+grows real columns for them. The agent never recommends approve/reject, so `Recommendation` is
+always `Escalate` for a real review; the analyst still makes the actual call via `/decisions`.
+
+To run both services together:
+
+```bash
+# terminal 1 - AI Review Agent (defaults to port 5176)
+cd ../AI-Review-Agent
+dotnet run --project src/AiReview.Api --launch-profile http
+
+# terminal 2 - this API
+cd src/CaseAuth.Api
+dotnet run
+```
+
+Then enqueue an `AiReview` pipeline job for a case that has reached `Screened`
+(`POST /api/cases/{caseId}/pipeline-jobs` with `{"jobType": "AiReview"}`) and poll
+`GET /api/cases/{caseId}/pipeline-jobs` until it completes.
+
+If the AI Review Agent isn't running, the job fails with a connection error (visible in the job's
+`error` field) rather than silently degrading - set `AiReviewAgent:Mode=Deterministic` (or the
+`AiReviewAgent__Mode` env var) to demo without it.
 
 ## Running locally
 
