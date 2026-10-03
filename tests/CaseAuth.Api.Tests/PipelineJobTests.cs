@@ -9,7 +9,7 @@ namespace CaseAuth.Api.Tests;
 
 // Exercises the background pipeline scaffold: PipelineJobsController enqueues a row, and
 // PipelineBackgroundService (polling every 1s in tests, see ApiFactory) picks it up and runs it
-// through PipelineJobProcessor against the Fixture/Deterministic placeholder implementations.
+// through PipelineJobProcessor against fixture services (ApiFactory selects deterministic AI review).
 public class PipelineJobTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
@@ -170,13 +170,13 @@ public class PipelineJobTests(ApiFactory factory) : IClassFixture<ApiFactory>
         Assert.Contains("202", sanctionsFinding.EvidenceJson);
 
         var aiReview = await EnqueueAsync(analyst, c.Id, PipelineJobType.AiReview);
-        Assert.Equal(PipelineJobStatus.Completed, (await WaitForTerminalStateAsync(analyst, c.Id, aiReview.Id)).Status);
+        var completedReview = await WaitForTerminalStateAsync(analyst, c.Id, aiReview.Id);
+        Assert.True(completedReview.Status == PipelineJobStatus.Completed, completedReview.Error);
 
         var updatedCase = await analyst.GetFromJsonAsync<CaseResponse>($"/api/cases/{c.Id}", JsonOptions);
         Assert.Equal(CaseStatus.AiReviewed, updatedCase!.Status);
 
-        // No real IAiReviewer is registered yet - DeterministicAiReviewer's fallback recommends
-        // Escalate rather than Approve, so a missing reviewer can never look like a clean approval.
+        // The test factory selects deterministic review; it recommends Escalate, never approval.
         var reviews = await analyst.GetFromJsonAsync<List<AiReviewResponse>>($"/api/cases/{c.Id}/ai-reviews", JsonOptions);
         Assert.Single(reviews!, r => r.ModelName == "deterministic-fallback" && r.Recommendation == AiRecommendation.Escalate);
     }

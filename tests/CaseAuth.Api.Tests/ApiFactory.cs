@@ -1,6 +1,10 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using CaseAuth.Api.Pipeline;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace CaseAuth.Api.Tests;
 
@@ -8,6 +12,8 @@ namespace CaseAuth.Api.Tests;
 // test classes never collide and nothing is left behind in the repo.
 public class ApiFactory : WebApplicationFactory<Program>
 {
+    public string AiReviewMode { get; set; } = "Deterministic";
+
     private readonly string _dbPath = Path.Combine(Path.GetTempPath(), $"caseauth-test-{Guid.NewGuid():N}.db");
     private readonly string _storageRoot = Path.Combine(Path.GetTempPath(), $"caseauth-test-uploads-{Guid.NewGuid():N}");
 
@@ -24,6 +30,14 @@ public class ApiFactory : WebApplicationFactory<Program>
                 // Fast polling so pipeline-job tests don't need long sleeps/timeouts.
                 ["Pipeline:PollIntervalSeconds"] = "1",
             });
+        });
+        builder.ConfigureTestServices(services =>
+        {
+            if (AiReviewMode.Equals("Deterministic", StringComparison.OrdinalIgnoreCase))
+            {
+                services.RemoveAll<IAiReviewer>();
+                services.AddScoped<IAiReviewer, DeterministicAiReviewer>();
+            }
         });
     }
 

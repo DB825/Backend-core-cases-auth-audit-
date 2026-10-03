@@ -78,7 +78,29 @@ builder.Services.AddSingleton<SanctionsSnapshot>(services =>
         services.GetRequiredService<ScreeningOptions>(),
         services.GetRequiredService<TimeProvider>()));
 builder.Services.AddScoped<IScreeningService, DeterministicScreeningService>();
-builder.Services.AddScoped<IAiReviewer, DeterministicAiReviewer>();
+var aiReviewOptions = builder.Configuration.GetSection(AiReviewAgentOptions.SectionName).Get<AiReviewAgentOptions>() ?? new();
+if (aiReviewOptions.Mode.Equals("Remote", StringComparison.OrdinalIgnoreCase))
+{
+    if (!Uri.TryCreate(aiReviewOptions.BaseUrl, UriKind.Absolute, out var aiReviewBaseUrl)
+        || aiReviewOptions.TimeoutSeconds <= 0)
+    {
+        throw new InvalidOperationException("AiReviewAgent requires an absolute BaseUrl and a positive TimeoutSeconds.");
+    }
+
+    builder.Services.AddHttpClient<IAiReviewer, RemoteAiReviewer>(client =>
+    {
+        client.BaseAddress = new Uri($"{aiReviewBaseUrl.ToString().TrimEnd('/')}/");
+        client.Timeout = TimeSpan.FromSeconds(aiReviewOptions.TimeoutSeconds);
+    });
+}
+else if (aiReviewOptions.Mode.Equals("Deterministic", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddScoped<IAiReviewer, DeterministicAiReviewer>();
+}
+else
+{
+    throw new InvalidOperationException($"Unsupported AiReviewAgent:Mode '{aiReviewOptions.Mode}'. Use Remote or Deterministic.");
+}
 builder.Services.AddScoped<IPipelineJobProcessor, PipelineJobProcessor>();
 builder.Services.AddHostedService<PipelineBackgroundService>();
 
