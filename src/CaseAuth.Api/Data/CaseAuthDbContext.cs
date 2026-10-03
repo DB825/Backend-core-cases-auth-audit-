@@ -86,6 +86,9 @@ public class CaseAuthDbContext(DbContextOptions<CaseAuthDbContext> options) : Db
             b.HasOne(j => j.Case).WithMany().HasForeignKey(j => j.CaseId);
             b.HasIndex(j => j.Status);
             b.HasIndex(j => j.CaseId);
+            b.HasIndex(j => new { j.CaseId, j.IdempotencyKey })
+                .IsUnique()
+                .HasFilter("\"IdempotencyKey\" IS NOT NULL");
         });
     }
 

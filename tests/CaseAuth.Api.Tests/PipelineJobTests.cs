@@ -44,10 +44,24 @@ public class PipelineJobTests(ApiFactory factory) : IClassFixture<ApiFactory>
 
     private static async Task<PipelineJobResponse> EnqueueAsync(HttpClient client, Guid caseId, PipelineJobType jobType)
     {
-        var response = await client.PostAsJsonAsync($"/api/cases/{caseId}/pipeline-jobs",
-            new EnqueuePipelineJobRequest(jobType), JsonOptions);
-        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
-        return (await response.Content.ReadFromJsonAsync<PipelineJobResponse>(JsonOptions))!;
+        var (status, job) = await EnqueueWithKeyAsync(client, caseId, jobType, Guid.NewGuid().ToString("N"));
+        Assert.Equal(HttpStatusCode.Accepted, status);
+        return job!;
+    }
+
+    private static async Task<(HttpStatusCode Status, PipelineJobResponse? Job)> EnqueueWithKeyAsync(
+        HttpClient client, Guid caseId, PipelineJobType jobType, string idempotencyKey)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"/api/cases/{caseId}/pipeline-jobs")
+        {
+            Content = JsonContent.Create(new EnqueuePipelineJobRequest(jobType), options: JsonOptions),
+        };
+        request.Headers.Add("Idempotency-Key", idempotencyKey);
+        using var response = await client.SendAsync(request);
+        var job = response.StatusCode is HttpStatusCode.Accepted or HttpStatusCode.OK
+            ? await response.Content.ReadFromJsonAsync<PipelineJobResponse>(JsonOptions)
+            : null;
+        return (response.StatusCode, job);
     }
 
     private static async Task<PipelineJobResponse> WaitForTerminalStateAsync(
@@ -67,6 +81,45 @@ public class PipelineJobTests(ApiFactory factory) : IClassFixture<ApiFactory>
         }
 
         throw new TimeoutException($"Pipeline job {jobId} did not reach a terminal state in time.");
+    }
+
+    [Fact]
+    public async Task Enqueue_RequiresAnIdempotencyKey()
+    {
+        var analyst = ClientFor("analyst1");
+        var response = await analyst.PostAsJsonAsync(
+            $"/api/cases/{Guid.NewGuid()}/pipeline-jobs",
+            new EnqueuePipelineJobRequest(PipelineJobType.Extract), JsonOptions);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ConcurrentEnqueueAndReplayWithSameKey_ReturnsOneJobAndOneEnqueueAudit()
+    {
+        var analyst = ClientFor("analyst1");
+        var (c, _) = await CreateCaseWithDocumentAsync(analyst);
+        var key = Guid.NewGuid().ToString("N");
+
+        var posts = await Task.WhenAll(Enumerable.Range(0, 2)
+            .Select(_ => EnqueueWithKeyAsync(analyst, c.Id, PipelineJobType.Extract, key)));
+
+        Assert.All(posts, post => Assert.Contains(post.Status, new[] { HttpStatusCode.Accepted, HttpStatusCode.OK }));
+        var jobId = Assert.Single(posts.Select(post => post.Job!.Id).Distinct());
+        var completed = await WaitForTerminalStateAsync(analyst, c.Id, jobId);
+        Assert.Equal(PipelineJobStatus.Completed, completed.Status);
+
+        var replay = await EnqueueWithKeyAsync(analyst, c.Id, PipelineJobType.Extract, key);
+        Assert.Equal(HttpStatusCode.OK, replay.Status);
+        Assert.Equal(jobId, replay.Job!.Id);
+
+        var conflict = await EnqueueWithKeyAsync(analyst, c.Id, PipelineJobType.Screen, key);
+        Assert.Equal(HttpStatusCode.Conflict, conflict.Status);
+
+        var jobs = await analyst.GetFromJsonAsync<List<PipelineJobResponse>>($"/api/cases/{c.Id}/pipeline-jobs", JsonOptions);
+        Assert.Single(jobs!, job => job.JobType == PipelineJobType.Extract);
+        var audit = await analyst.GetFromJsonAsync<List<AuditEventResponse>>($"/api/cases/{c.Id}/audit-events", JsonOptions);
+        Assert.Single(audit!, item => item.Action == "PipelineJob.Enqueued.Extract");
     }
 
     [Fact]

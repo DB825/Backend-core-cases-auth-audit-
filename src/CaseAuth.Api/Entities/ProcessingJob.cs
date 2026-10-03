@@ -11,6 +11,7 @@ public class ProcessingJob
     public Case? Case { get; set; }
 
     public PipelineJobType JobType { get; set; }
+    public string? IdempotencyKey { get; set; }
     public PipelineJobStatus Status { get; set; } = PipelineJobStatus.Pending;
 
     public int Attempts { get; set; }

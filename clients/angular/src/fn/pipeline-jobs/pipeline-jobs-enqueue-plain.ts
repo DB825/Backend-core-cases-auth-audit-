@@ -12,6 +12,7 @@ import { PipelineJobResponse } from '../../models/pipeline-job-response';
 
 export interface PipelineJobsEnqueue$Plain$Params {
   caseId: string;
+  'Idempotency-Key': string;
       body?: EnqueuePipelineJobRequest
 }
 
@@ -19,6 +20,7 @@ export function pipelineJobsEnqueue$Plain(http: HttpClient, rootUrl: string, par
   const rb = new RequestBuilder(rootUrl, pipelineJobsEnqueue$Plain.PATH, 'post');
   if (params) {
     rb.path('caseId', params.caseId, {});
+    rb.header('Idempotency-Key', params['Idempotency-Key'], {});
     rb.body(params.body, 'application/*+json');
   }
 
