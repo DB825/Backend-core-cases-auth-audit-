@@ -20,6 +20,8 @@ the Docker container instead.
 
 ## Demo notes
 
+- As `supervisor`, **Reset demo** on the queue deletes the firm's cases and reloads the five
+  personas, all waiting for a decision. Use it before every run-through.
 - Switch user at the top right. `analyst1` sees the queue but can't decide; `supervisor`
   (same firm) can; `analyst2` is in Firm B and sees no Firm A cases at all.
 - Click a finding to highlight the fields it cites. Fields under 80% extraction confidence
@@ -29,8 +31,8 @@ the Docker container instead.
 
 ## Stand-ins until the backend catches up
 
-- **Risk score** is computed in the browser (`src/risk.ts`) from the per-finding rule
-  scores, because the API has no case-level score yet.
+- **Risk score** comes from the API (`riskScore` / `riskTier` on each case). Against an older
+  API build without those fields, `src/risk.ts` computes the same number in the browser.
 - **Structured AI review** (summary, key concerns, next steps, draft case note) is read from
   JSON stored in the review's `rationale`. Plain-text rationales still render.
 - **Document images** need `GET /api/cases/{caseId}/documents/{documentId}/content`, added

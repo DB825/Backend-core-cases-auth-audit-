@@ -17,11 +17,27 @@ image is stamped SPECIMEN. The watchlist entry is made up, not a real SDN record
 against `documents[].fields`, Teammate 3 can check its rules produce `findings`, and
 Teammate 4 can compare its output with `aiReview`.
 
+The quickest way to load them is the dashboard's **Reset demo** button (as `supervisor`), or
+the API call it makes:
+
+```bash
+curl -X POST localhost:5020/api/demo/reset -H "X-Dev-User: supervisor"
+```
+
+That deletes the caller's firm's cases (their audit events stay, so the log is still
+append-only) and loads all five personas straight into AwaitingDecision. It only exists in the
+Development environment, and only a supervisor can call it. It reads `demo/personas.json` and
+`demo/specimens/`, found by walking up from the API's content root, or from `Demo:DataPath`.
+
+To load them over plain HTTP instead (for example against a deployed API):
+
 ```bash
 python3 -m pip install pillow
 python3 demo/make_specimens.py     # writes demo/specimens/*.png
 node demo/seed.mjs                 # loads all five into the API as analyst1, ready for a decision
 ```
 
-Each seed run adds five new cases. To reset, stop the API and delete
-`src/CaseAuth.Api/caseauth.db` and `src/CaseAuth.Api/fixture-uploads/`.
+Each `seed.mjs` run adds five new cases rather than replacing them.
+
+Finding codes match the Angular workbench's plain-language rules where one exists
+(`NAME_MISMATCH`, `ADDRESS_MISMATCH`, `EXPIRED_ID`, `LOW_CONFIDENCE_EXTRACTION`).

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, type AiReviewResponse, type CaseResponse, type Me, type ReviewFinding } from "./api";
-import { caseRisk } from "./risk";
+import { riskFor } from "./risk";
 import { RecommendationTag, RiskBadge, SeverityTag, StatusTag } from "./Badges";
 
 // NAME_MISMATCH -> "Name mismatch", ID_EXPIRED -> "ID expired".
@@ -13,7 +13,7 @@ interface Row {
   c: CaseResponse;
   findings: ReviewFinding[];
   review: AiReviewResponse | null;
-  risk: ReturnType<typeof caseRisk>;
+  risk: ReturnType<typeof riskFor>;
 }
 
 const FILTERS = {
@@ -26,6 +26,22 @@ export default function Queue({ me }: { me: Me }) {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<keyof typeof FILTERS>("open");
+  const [reloadKey, setReloadKey] = useState(0);
+  const [resetting, setResetting] = useState(false);
+
+  const resetDemo = async () => {
+    if (!window.confirm(`Delete every ${me.firmId} case and reload the five demo applicants?`)) return;
+    setResetting(true);
+    try {
+      await api.resetDemo(me.username);
+      setRows(null);
+      setReloadKey((k) => k + 1);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setResetting(false);
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -34,12 +50,12 @@ export default function Queue({ me }: { me: Me }) {
       const loaded = await Promise.all(cases.map(async (c) => {
         const [input, reviews] = await Promise.all([api.reviewInput(me.username, c.id), api.aiReviews(me.username, c.id)]);
         const review = reviews.reduce<AiReviewResponse | null>((a, r) => (!a || r.version > a.version ? r : a), null);
-        return { c, findings: input.findings, review, risk: caseRisk(input.findings) };
+        return { c, findings: input.findings, review, risk: riskFor(c, input.findings) };
       }));
       loaded.sort((a, b) => b.risk.score - a.risk.score);
       setRows(loaded);
     })().catch((e) => setError(e.message));
-  }, [me.username]);
+  }, [me.username, reloadKey]);
 
   const visible = useMemo(() => rows?.filter(FILTERS[filter].match) ?? [], [rows, filter]);
   const counts = useMemo(() => {
@@ -60,6 +76,11 @@ export default function Queue({ me }: { me: Me }) {
         <div>
           <h1>Case queue</h1>
           <p className="muted">New accounts for {me.firmId}, highest risk first.</p>
+          {me.role === "Supervisor" && (
+            <button className="btn ghost small reset" disabled={resetting} onClick={resetDemo}>
+              {resetting ? "Resetting…" : "Reset demo"}
+            </button>
+          )}
         </div>
         <div className="stats">
           <div className="stat"><span className="stat-n">{counts.open}</span><span className="stat-l">awaiting decision</span></div>

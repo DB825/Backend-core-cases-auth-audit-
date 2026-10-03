@@ -57,6 +57,10 @@ export type { DecisionsCreate$Plain$Params as DecisionsCreate$Plain$Params } fro
 export { decisionsCreate$Plain as decisionsCreate$Plain } from './fn/decisions/decisions-create-plain';
 export type { DecisionsCreate$Json$Params as DecisionsCreate$Json$Params } from './fn/decisions/decisions-create-json';
 export { decisionsCreate$Json as decisionsCreate$Json } from './fn/decisions/decisions-create-json';
+export type { DemoReset$Plain$Params as DemoReset$Plain$Params } from './fn/demo/demo-reset-plain';
+export { demoReset$Plain as demoReset$Plain } from './fn/demo/demo-reset-plain';
+export type { DemoReset$Json$Params as DemoReset$Json$Params } from './fn/demo/demo-reset-json';
+export { demoReset$Json as demoReset$Json } from './fn/demo/demo-reset-json';
 export type { DocumentsList$Plain$Params as DocumentsList$Plain$Params } from './fn/documents/documents-list-plain';
 export { documentsList$Plain as documentsList$Plain } from './fn/documents/documents-list-plain';
 export type { DocumentsList$Json$Params as DocumentsList$Json$Params } from './fn/documents/documents-list-json';

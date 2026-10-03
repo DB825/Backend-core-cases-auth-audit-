@@ -90,8 +90,8 @@
           ] }
       ],
       "findings": [
-        { "code": "ID_EXPIRED", "severity": "High", "score": 0.6, "message": "Passport expired on 2024-06-30.", "fields": ["id.EXPIRATION_DATE"] },
-        { "code": "LOW_CONFIDENCE_FIELD", "severity": "Medium", "score": 0.35, "message": "Date of birth on the passport was read with 58% confidence. A person should confirm it against the image.", "fields": ["id.DATE_OF_BIRTH"] }
+        { "code": "EXPIRED_ID", "severity": "High", "score": 0.6, "message": "Passport expired on 2024-06-30.", "fields": ["id.EXPIRATION_DATE"] },
+        { "code": "LOW_CONFIDENCE_EXTRACTION", "severity": "Medium", "score": 0.35, "message": "Date of birth on the passport was read with 58% confidence. A person should confirm it against the image.", "fields": ["id.DATE_OF_BIRTH"] }
       ],
       "aiReview": {
         "recommendation": "Escalate",

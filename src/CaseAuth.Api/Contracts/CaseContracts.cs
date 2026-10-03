@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using CaseAuth.Api.Entities;
+using CaseAuth.Api.Services;
 
 namespace CaseAuth.Api.Contracts;
 
@@ -17,10 +18,18 @@ public record CaseResponse(
     string CreatedByUserId,
     DateTime CreatedAt,
     DateTime UpdatedAt,
-    Guid RowVersion)
+    Guid RowVersion,
+    // Combined rule score across the case's findings (0-1) and its tier - see Services/CaseRisk.
+    double RiskScore,
+    FindingSeverity RiskTier)
 {
-    public static CaseResponse From(Case c) => new(
-        c.Id, c.FirmId, c.Status, c.Applicant!.FullName, c.CreatedByUserId, c.CreatedAt, c.UpdatedAt, c.RowVersion);
+    public static CaseResponse From(Case c, IEnumerable<double?> findingScores)
+    {
+        var riskScore = CaseRisk.Score(findingScores);
+        return new(
+            c.Id, c.FirmId, c.Status, c.Applicant!.FullName, c.CreatedByUserId, c.CreatedAt, c.UpdatedAt, c.RowVersion,
+            riskScore, CaseRisk.Tier(riskScore));
+    }
 }
 
 public record CreateAiReviewRequest(

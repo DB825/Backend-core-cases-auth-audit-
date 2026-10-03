@@ -11,6 +11,8 @@ export interface Me { userId: string; username: string; firmId: string; role: st
 export interface CaseResponse {
   id: string; firmId: string; status: CaseStatus; applicantFullName: string;
   createdByUserId: string; createdAt: string; updatedAt: string; rowVersion: string;
+  // Server-computed from the findings' rule scores; absent on older API builds.
+  riskScore?: number; riskTier?: Severity;
 }
 export interface DocumentResponse {
   id: string; fileName: string; contentType: string; sizeBytes: number;
@@ -76,6 +78,7 @@ export const api = {
   decide: (u: string, c: CaseResponse, outcome: DecisionOutcome, aiReviewId: string | null, idempotencyKey: string) =>
     request<DecisionResponse>(u, "POST", `/api/cases/${c.id}/decisions`, { outcome, aiReviewId },
       { "Idempotency-Key": idempotencyKey, "If-Match": c.rowVersion }),
+  resetDemo: (u: string) => request<{ casesCreated: number }>(u, "POST", "/api/demo/reset"),
   // Needs the GET .../documents/{id}/content endpoint. Returns null if the API predates it.
   documentBlobUrl: async (u: string, caseId: string, docId: string): Promise<string | null> => {
     const res = await fetch(`/api/cases/${caseId}/documents/${docId}/content`, { headers: { "X-Dev-User": u } });

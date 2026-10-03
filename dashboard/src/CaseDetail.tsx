@@ -3,7 +3,7 @@ import {
   api, parseRationale, type AiReviewInput, type AiReviewResponse, type AuditEventResponse, type CaseResponse,
   type DecisionOutcome, type DecisionResponse, type DocumentResponse, type Me, type Severity,
 } from "./api";
-import { caseRisk, LOW_CONFIDENCE } from "./risk";
+import { LOW_CONFIDENCE, riskFor } from "./risk";
 import { RecommendationTag, RiskBadge, SeverityTag, StatusTag } from "./Badges";
 
 interface Data {
@@ -56,7 +56,7 @@ export default function CaseDetail({ me, caseId }: { me: Me; caseId: string }) {
   if (!data) return <div className="loading">Loading case…</div>;
 
   const { c, docs, input, review, decisions, audit } = data;
-  const risk = caseRisk(input.findings);
+  const risk = riskFor(c, input.findings);
   const activeFieldIds = new Set(input.findings.find((f) => f.id === activeFinding)?.sourceFieldIds ?? []);
   const docFields = input.fields.filter((f) => f.documentId === docId);
   const fieldsByDoc = (id: string) => input.fields.filter((f) => f.documentId === id);

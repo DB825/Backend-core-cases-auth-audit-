@@ -1,0 +1,182 @@
+using System.Text.Json;
+using CaseAuth.Api.Auth;
+using CaseAuth.Api.Data;
+using CaseAuth.Api.Entities;
+using CaseAuth.Api.Storage;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+
+namespace CaseAuth.Api.Demo;
+
+public interface IDemoSeeder
+{
+    // Deletes the firm's cases and loads every persona as a fresh case waiting for a decision.
+    // Returns the number of cases created.
+    Task<int> ResetAsync(string firmId, CancellationToken ct);
+}
+
+// Demo support only - DemoController refuses to run outside Development. Audit events are left
+// in place on reset (they have no foreign key to Case), so the audit log stays append-only even
+// though the case rows it describes are gone.
+public class DemoSeeder(
+    CaseAuthDbContext db,
+    IFileStorageService storage,
+    IOptions<DemoOptions> options,
+    IWebHostEnvironment environment) : IDemoSeeder
+{
+    public const string SeedActorId = "system";
+    public const string SeedActorUsername = "demo-seed";
+    public const string AiModelName = "demo-reviewer (seeded)";
+
+    public async Task<int> ResetAsync(string firmId, CancellationToken ct)
+    {
+        var dataPath = ResolveDataPath();
+        var personas = await PersonaLoader.LoadAsync(Path.Combine(dataPath, "personas.json"), ct);
+
+        // Cascades through documents, fields, findings, AI reviews, decisions and pipeline jobs.
+        await db.Cases.Where(c => c.FirmId == firmId).ExecuteDeleteAsync(ct);
+        await db.Applicants.Where(a => a.FirmId == firmId).ExecuteDeleteAsync(ct);
+
+        // Seeded cases belong to the firm's first analyst so they show up in that analyst's own
+        // queue, the way a case they had opened themselves would.
+        var owner = DevUserStore.Users.Values.FirstOrDefault(u => u.FirmId == firmId && u.Role == Roles.Analyst)?.Id
+            ?? SeedActorId;
+        var correlationId = Guid.NewGuid().ToString();
+        // Stagger timestamps so each case's audit trail sorts in the order the steps happened.
+        var clock = DateTime.UtcNow;
+        DateTime Tick() => clock = clock.AddMilliseconds(10);
+
+        void Audit(Guid? caseId, string action, int? aiReviewVersion = null) => db.AuditEvents.Add(new AuditEvent
+        {
+            CaseId = caseId,
+            FirmId = firmId,
+            ActorUserId = SeedActorId,
+            ActorUsername = SeedActorUsername,
+            Action = action,
+            Outcome = AuditOutcome.Success,
+            CorrelationId = correlationId,
+            AiReviewVersion = aiReviewVersion,
+            Timestamp = Tick(),
+        });
+
+        Audit(null, "Demo.Reset");
+
+        foreach (var p in personas)
+        {
+            var applicant = new Applicant
+            {
+                FirmId = firmId,
+                FullName = p.Applicant.FullName,
+                DateOfBirth = p.Applicant.DateOfBirth,
+                Email = p.Applicant.Email,
+                Phone = p.Applicant.Phone,
+            };
+            var c = new Case
+            {
+                FirmId = firmId,
+                Applicant = applicant,
+                CreatedByUserId = owner,
+                CreatedAt = Tick(),
+                Status = CaseStatus.AwaitingDecision,
+            };
+            db.Cases.Add(c);
+            Audit(c.Id, "Case.Created");
+
+            var fields = new Dictionary<string, ExtractedField>();
+            foreach (var d in p.Documents)
+            {
+                var filePath = Path.Combine(dataPath, "specimens", d.File);
+                await using var file = File.OpenRead(filePath);
+                var fileName = $"{d.Title}.png";
+                var document = new Document
+                {
+                    Case = c,
+                    FileName = fileName,
+                    ContentType = "image/png",
+                    SizeBytes = file.Length,
+                    DocumentType = d.Type,
+                    StorageKey = await storage.SaveAsync(firmId, c.Id, fileName, file, ct),
+                    UploadedByUserId = owner,
+                    UploadedAt = Tick(),
+                };
+                db.Documents.Add(document);
+                Audit(c.Id, "Document.Uploaded");
+
+                foreach (var f in d.Fields)
+                {
+                    var field = new ExtractedField
+                    {
+                        Document = document,
+                        FieldName = f.Name,
+                        FieldValue = f.Value,
+                        Confidence = f.Confidence,
+                        ExtractedAt = Tick(),
+                    };
+                    db.ExtractedFields.Add(field);
+                    fields[$"{d.Key}.{f.Name}"] = field;
+                }
+                Audit(c.Id, "ExtractedField.Recorded");
+            }
+            Audit(c.Id, "Case.extract");
+
+            foreach (var f in p.Findings)
+            {
+                db.Findings.Add(new Finding
+                {
+                    Case = c,
+                    Code = f.Code,
+                    Severity = f.Severity,
+                    Source = FindingSource.Ai,
+                    Message = f.Message,
+                    Score = f.Score,
+                    SourceFields = f.Fields.Select(k => fields.TryGetValue(k, out var field)
+                        ? field
+                        : throw new InvalidOperationException($"Persona '{p.Key}': finding {f.Code} cites unknown field '{k}'.")).ToList(),
+                    CreatedAt = Tick(),
+                });
+                Audit(c.Id, "Finding.Created");
+            }
+            Audit(c.Id, "Case.screen");
+
+            var r = p.AiReview;
+            db.AiReviews.Add(new AiReview
+            {
+                Case = c,
+                Version = 1,
+                ModelName = AiModelName,
+                ModelVersion = "personas-1",
+                Recommendation = r.Recommendation,
+                Rationale = JsonSerializer.Serialize(
+                    new { r.Summary, r.KeyConcerns, r.NextSteps, r.DraftCaseNote }, PersonaLoader.JsonOptions),
+                CreatedAt = Tick(),
+            });
+            Audit(c.Id, "AiReview.Recorded", aiReviewVersion: 1);
+            Audit(c.Id, "Case.mark-ai-reviewed");
+            Audit(c.Id, "Case.request-decision");
+            c.UpdatedAt = clock;
+        }
+
+        await db.SaveChangesAsync(ct);
+        return personas.Count;
+    }
+
+    private string ResolveDataPath()
+    {
+        if (!string.IsNullOrWhiteSpace(options.Value.DataPath))
+        {
+            return Path.GetFullPath(options.Value.DataPath, environment.ContentRootPath);
+        }
+
+        for (var dir = new DirectoryInfo(environment.ContentRootPath); dir is not null; dir = dir.Parent)
+        {
+            var candidate = Path.Combine(dir.FullName, "demo");
+            if (File.Exists(Path.Combine(candidate, "personas.json")))
+            {
+                return candidate;
+            }
+        }
+
+        throw new InvalidOperationException(
+            "Couldn't find demo/personas.json above the content root. Set Demo:DataPath to the demo folder.");
+    }
+}

@@ -658,6 +658,36 @@
         }
       }
     },
+    "/api/demo/reset": {
+      "post": {
+        "tags": [
+          "Demo"
+        ],
+        "operationId": "Demo_Reset",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoResetResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoResetResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoResetResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/cases/{caseId}/documents": {
       "get": {
         "tags": [
@@ -1381,6 +1411,13 @@
           "rowVersion": {
             "type": "string",
             "format": "uuid"
+          },
+          "riskScore": {
+            "type": "number",
+            "format": "double"
+          },
+          "riskTier": {
+            "$ref": "#/components/schemas/FindingSeverity"
           }
         },
         "additionalProperties": false
@@ -1536,6 +1573,16 @@
           "decidedAt": {
             "type": "string",
             "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DemoResetResponse": {
+        "type": "object",
+        "properties": {
+          "casesCreated": {
+            "type": "integer",
+            "format": "int32"
           }
         },
         "additionalProperties": false

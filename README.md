@@ -86,6 +86,10 @@ images, findings, AI review, decision buttons and audit trail). `demo/` holds fi
 applicant personas and a script that loads them into a running API. See
 `dashboard/README.md` and `demo/README.md`.
 
+Cases carry a server-computed `riskScore` (0-1, combining every finding's rule score) and
+`riskTier` (Low/Medium/High), so any client can sort a queue by risk. In Development a
+supervisor can `POST /api/demo/reset` to replace their firm's cases with the demo personas.
+
 ## Running locally
 
 Requires the .NET 8 SDK (`dotnet --version`).

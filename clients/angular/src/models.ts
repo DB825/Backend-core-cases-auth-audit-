@@ -17,6 +17,7 @@ export type { CreateExtractedFieldsRequest } from './models/create-extracted-fie
 export type { CreateFindingRequest } from './models/create-finding-request';
 export type { DecisionOutcome } from './models/decision-outcome';
 export type { DecisionResponse } from './models/decision-response';
+export type { DemoResetResponse } from './models/demo-reset-response';
 export type { DocumentResponse } from './models/document-response';
 export type { DocumentType } from './models/document-type';
 export type { EnqueuePipelineJobRequest } from './models/enqueue-pipeline-job-request';

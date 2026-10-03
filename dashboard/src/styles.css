@@ -181,3 +181,5 @@ ol.audit { list-style: none; padding: 0; margin: 12px 0 0; border-left: 2px soli
 .audit-outcome.rejected, .audit-outcome.failure { color: var(--high); }
 .audit-ai { font-size: 12px; color: #6b4fbb; font-weight: 600; }
 .audit-corr { margin-left: auto; color: var(--muted); }
+
+.reset { margin-top: 10px; }
