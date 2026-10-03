@@ -147,7 +147,7 @@ export default function CaseDetail({ me, caseId }: { me: Me; caseId: string }) {
 
       <section className="panel">
         <h2>Audit trail <span className="count">{audit.length}</span></h2>
-        <p className="muted small">Every action on this case, written in the same transaction as the change it records.</p>
+        <p className="muted small">Every action on this case, including who opened each document. Changes are written in the same transaction as their audit event.</p>
         <ol className="audit">
           {[...audit].sort((a, b) => a.timestamp.localeCompare(b.timestamp)).map((e) => (
             <li key={e.id} className={`audit-${e.outcome.toLowerCase()}`}>

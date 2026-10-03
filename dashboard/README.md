@@ -36,4 +36,5 @@ the Docker container instead.
 - **Structured AI review** (summary, key concerns, next steps, draft case note) is read from
   JSON stored in the review's `rationale`. Plain-text rationales still render.
 - **Document images** need `GET /api/cases/{caseId}/documents/{documentId}/content`, added
-  alongside this dashboard.
+  alongside this dashboard. Each successful read writes a `Document.Viewed` audit event, so
+  opening a case logs one view per document tab shown.

@@ -158,6 +158,11 @@ public class CaseAuthApiTests(ApiFactory factory) : IClassFixture<ApiFactory>
 
         var otherFirm = await ClientFor("analyst2").GetAsync($"/api/cases/{c.Id}/documents/{document.Id}/content");
         Assert.Equal(HttpStatusCode.NotFound, otherFirm.StatusCode);
+
+        // Only the successful read is audited; the other firm's attempt never reached the file.
+        var auditEvents = await analyst.GetFromJsonAsync<List<AuditEventResponse>>($"/api/cases/{c.Id}/audit-events", JsonOptions);
+        var viewed = Assert.Single(auditEvents!, e => e.Action == "Document.Viewed");
+        Assert.Equal("analyst1", viewed.ActorUsername);
     }
 
     [Fact]
@@ -183,6 +188,9 @@ public class CaseAuthApiTests(ApiFactory factory) : IClassFixture<ApiFactory>
 
         var content = await analyst.GetAsync($"/api/cases/{c.Id}/documents/{document.Id}/content");
         Assert.Equal(HttpStatusCode.NotFound, content.StatusCode);
+
+        var auditEvents = await analyst.GetFromJsonAsync<List<AuditEventResponse>>($"/api/cases/{c.Id}/audit-events", JsonOptions);
+        Assert.DoesNotContain(auditEvents!, e => e.Action == "Document.Viewed");
     }
 
     [Fact]
