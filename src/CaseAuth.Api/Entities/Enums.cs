@@ -20,6 +20,10 @@ public enum DocumentType
     ProofOfAddress,
     Financial,
     Other,
+    Application,
+    W9,
+    BeneficialOwnership,
+    FormationDocument,
 }
 
 // Low/Medium/High (not Info/Warning/Critical) to match the vocabulary Teammate 3's screening
@@ -35,6 +39,7 @@ public enum FindingSource
 {
     Ai,
     Manual,
+    Deterministic,
 }
 
 public enum AiRecommendation
@@ -73,4 +78,10 @@ public enum PipelineJobStatus
     Processing,
     Completed,
     Failed,
+}
+
+public enum ApplicantKind
+{
+    Individual,
+    Entity,
 }

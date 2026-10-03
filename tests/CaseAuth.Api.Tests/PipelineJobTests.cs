@@ -92,13 +92,29 @@ public class PipelineJobTests(ApiFactory factory) : IClassFixture<ApiFactory>
     public async Task FullPipeline_RunsExtractScreenAndAiReview_EndingInAiReviewedWithDeterministicFallback()
     {
         var analyst = ClientFor("analyst1");
-        var (c, _) = await CreateCaseWithDocumentAsync(analyst);
+        var (c, document) = await CreateCaseWithDocumentAsync(analyst);
 
         var extract = await EnqueueAsync(analyst, c.Id, PipelineJobType.Extract);
         Assert.Equal(PipelineJobStatus.Completed, (await WaitForTerminalStateAsync(analyst, c.Id, extract.Id)).Status);
 
+        var recorded = await analyst.PostAsJsonAsync(
+            $"/api/documents/{document.Id}/extracted-fields",
+            new CreateExtractedFieldsRequest([
+                new ExtractedFieldInput("full_name", "Demo Sanctioned Person", 0.99),
+                new ExtractedFieldInput("date_of_birth", "1990-04-12", 0.99),
+                new ExtractedFieldInput("expiry_date", "2099-12-31", 0.99)
+            ]), JsonOptions);
+        var extracted = (await recorded.Content.ReadFromJsonAsync<List<ExtractedFieldResponse>>(JsonOptions))!;
+
         var screen = await EnqueueAsync(analyst, c.Id, PipelineJobType.Screen);
         Assert.Equal(PipelineJobStatus.Completed, (await WaitForTerminalStateAsync(analyst, c.Id, screen.Id)).Status);
+
+        var findings = await analyst.GetFromJsonAsync<List<FindingResponse>>($"/api/cases/{c.Id}/findings", JsonOptions);
+        var nameFinding = Assert.Single(findings!, finding => finding.Code == "NAME_MISMATCH");
+        Assert.Equal(FindingSource.Deterministic, nameFinding.Source);
+        Assert.Contains(extracted[0].Id, nameFinding.SourceFieldIds);
+        var sanctionsFinding = Assert.Single(findings!, finding => finding.Code == "OFAC_POTENTIAL_MATCH");
+        Assert.Contains("202", sanctionsFinding.EvidenceJson);
 
         var aiReview = await EnqueueAsync(analyst, c.Id, PipelineJobType.AiReview);
         Assert.Equal(PipelineJobStatus.Completed, (await WaitForTerminalStateAsync(analyst, c.Id, aiReview.Id)).Status);

@@ -4,6 +4,7 @@ using CaseAuth.Api.Data;
 using CaseAuth.Api.Errors;
 using CaseAuth.Api.Infrastructure;
 using CaseAuth.Api.Pipeline;
+using CaseAuth.Api.Screening;
 using CaseAuth.Api.Services;
 using CaseAuth.Api.Storage;
 using Microsoft.AspNetCore.Authentication;
@@ -63,29 +64,21 @@ builder.Services.AddScoped<IFileStorageService>(sp =>
 });
 
 // --- Background pipeline ---------------------------------------------------------------
-// FixtureDocumentExtractor/FixtureScreeningService are still placeholders for Teammates 1/3 -
-// same DI-swap pattern as IFileStorageService above. IAiReviewer (Teammate 4) now points at the
-// real AI Review Agent service by default; AiReviewAgent:Mode=Deterministic switches back to
-// the escalate-only stub for demoing without that service running.
 builder.Services.Configure<PipelineOptions>(builder.Configuration.GetSection(PipelineOptions.SectionName));
 builder.Services.AddScoped<IDocumentExtractor, FixtureDocumentExtractor>();
-builder.Services.AddScoped<IScreeningService, FixtureScreeningService>();
 
-builder.Services.Configure<AiReviewAgentOptions>(builder.Configuration.GetSection(AiReviewAgentOptions.SectionName));
-builder.Services.AddHttpClient<RemoteAiReviewer>((sp, client) =>
-{
-    var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<AiReviewAgentOptions>>().Value;
-    client.BaseAddress = new Uri(options.BaseUrl);
-    client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
-});
-builder.Services.AddScoped<IAiReviewer>(sp =>
-{
-    var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<AiReviewAgentOptions>>().Value;
-    return string.Equals(options.Mode, "Deterministic", StringComparison.OrdinalIgnoreCase)
-        ? new DeterministicAiReviewer()
-        : sp.GetRequiredService<RemoteAiReviewer>();
-});
-
+var screeningOptions = new ScreeningOptions();
+builder.Configuration.GetSection("Screening").Bind(screeningOptions);
+screeningOptions.Validate();
+builder.Services.AddSingleton(screeningOptions);
+builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
+builder.Services.AddSingleton<ScreeningEngine>();
+builder.Services.AddSingleton<SanctionsSnapshot>(services =>
+    SanctionsSnapshots.FromConfiguration(
+        services.GetRequiredService<ScreeningOptions>(),
+        services.GetRequiredService<TimeProvider>()));
+builder.Services.AddScoped<IScreeningService, DeterministicScreeningService>();
+builder.Services.AddScoped<IAiReviewer, DeterministicAiReviewer>();
 builder.Services.AddScoped<IPipelineJobProcessor, PipelineJobProcessor>();
 builder.Services.AddHostedService<PipelineBackgroundService>();
 

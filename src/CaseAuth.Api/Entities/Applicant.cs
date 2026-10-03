@@ -12,4 +12,6 @@ public class Applicant
     public string? Phone { get; set; }
 
     public Case? Case { get; set; }
+
+    public ApplicantKind Kind { get; set; } = ApplicantKind.Individual;
 }

@@ -7,7 +7,8 @@ public record CreateCaseRequest(
     [Required, MaxLength(200)] string ApplicantFullName,
     DateOnly? ApplicantDateOfBirth,
     [EmailAddress] string? ApplicantEmail,
-    string? ApplicantPhone);
+    string? ApplicantPhone,
+    ApplicantKind ApplicantKind = ApplicantKind.Individual);
 
 public record CaseResponse(
     Guid Id,
@@ -62,10 +63,11 @@ public record FindingResponse(
     string Message,
     double? Score,
     List<Guid> SourceFieldIds,
-    DateTime CreatedAt)
+    DateTime CreatedAt,
+    string? EvidenceJson = null)
 {
     public static FindingResponse From(Finding f) => new(
-        f.Id, f.Severity, f.Source, f.Code, f.Message, f.Score, f.SourceFields.Select(sf => sf.Id).ToList(), f.CreatedAt);
+        f.Id, f.Severity, f.Source, f.Code, f.Message, f.Score, f.SourceFields.Select(sf => sf.Id).ToList(), f.CreatedAt, f.EvidenceJson);
 }
 
 public record MeResponse(string UserId, string Username, string FirmId, string Role);

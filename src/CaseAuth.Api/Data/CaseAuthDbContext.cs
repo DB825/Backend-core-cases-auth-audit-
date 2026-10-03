@@ -28,6 +28,7 @@ public class CaseAuthDbContext(DbContextOptions<CaseAuthDbContext> options) : Db
         modelBuilder.Entity<Applicant>(b =>
         {
             b.HasIndex(a => a.FirmId);
+            b.Property(a => a.Kind).HasConversion<string>();
         });
 
         modelBuilder.Entity<Document>(b =>
