@@ -21,6 +21,8 @@ public class ApiFactory : WebApplicationFactory<Program>
             {
                 ["ConnectionStrings:Sqlite"] = $"Data Source={_dbPath}",
                 ["Storage:LocalDiskRoot"] = _storageRoot,
+                // Fast polling so pipeline-job tests don't need long sleeps/timeouts.
+                ["Pipeline:PollIntervalSeconds"] = "1",
             });
         });
     }

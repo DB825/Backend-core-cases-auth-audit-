@@ -87,3 +87,11 @@ export type { MeGet$Plain$Params as MeGet$Plain$Params } from './fn/me/me-get-pl
 export { meGet$Plain as meGet$Plain } from './fn/me/me-get-plain';
 export type { MeGet$Json$Params as MeGet$Json$Params } from './fn/me/me-get-json';
 export { meGet$Json as meGet$Json } from './fn/me/me-get-json';
+export type { PipelineJobsList$Plain$Params as PipelineJobsList$Plain$Params } from './fn/pipeline-jobs/pipeline-jobs-list-plain';
+export { pipelineJobsList$Plain as pipelineJobsList$Plain } from './fn/pipeline-jobs/pipeline-jobs-list-plain';
+export type { PipelineJobsList$Json$Params as PipelineJobsList$Json$Params } from './fn/pipeline-jobs/pipeline-jobs-list-json';
+export { pipelineJobsList$Json as pipelineJobsList$Json } from './fn/pipeline-jobs/pipeline-jobs-list-json';
+export type { PipelineJobsEnqueue$Plain$Params as PipelineJobsEnqueue$Plain$Params } from './fn/pipeline-jobs/pipeline-jobs-enqueue-plain';
+export { pipelineJobsEnqueue$Plain as pipelineJobsEnqueue$Plain } from './fn/pipeline-jobs/pipeline-jobs-enqueue-plain';
+export type { PipelineJobsEnqueue$Json$Params as PipelineJobsEnqueue$Json$Params } from './fn/pipeline-jobs/pipeline-jobs-enqueue-json';
+export { pipelineJobsEnqueue$Json as pipelineJobsEnqueue$Json } from './fn/pipeline-jobs/pipeline-jobs-enqueue-json';

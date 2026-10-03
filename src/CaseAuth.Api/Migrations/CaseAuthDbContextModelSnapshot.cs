@@ -325,6 +325,47 @@ namespace CaseAuth.Api.Migrations
                     b.ToTable("Findings");
                 });
 
+            modelBuilder.Entity("CaseAuth.Api.Entities.ProcessingJob", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("CaseId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Error")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("JobType")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("StartedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CaseId");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("ProcessingJobs");
+                });
+
             modelBuilder.Entity("ExtractedFieldFinding", b =>
                 {
                     b.Property<Guid>("FindingId")
@@ -405,6 +446,17 @@ namespace CaseAuth.Api.Migrations
                 {
                     b.HasOne("CaseAuth.Api.Entities.Case", "Case")
                         .WithMany("Findings")
+                        .HasForeignKey("CaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Case");
+                });
+
+            modelBuilder.Entity("CaseAuth.Api.Entities.ProcessingJob", b =>
+                {
+                    b.HasOne("CaseAuth.Api.Entities.Case", "Case")
+                        .WithMany()
                         .HasForeignKey("CaseId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();

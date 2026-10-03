@@ -13,6 +13,7 @@ public class CaseAuthDbContext(DbContextOptions<CaseAuthDbContext> options) : Db
     public DbSet<AiReview> AiReviews => Set<AiReview>();
     public DbSet<Decision> Decisions => Set<Decision>();
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
+    public DbSet<ProcessingJob> ProcessingJobs => Set<ProcessingJob>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -75,6 +76,15 @@ public class CaseAuthDbContext(DbContextOptions<CaseAuthDbContext> options) : Db
             b.Property(a => a.Outcome).HasConversion<string>();
             b.HasIndex(a => a.CaseId);
             b.HasIndex(a => a.FirmId);
+        });
+
+        modelBuilder.Entity<ProcessingJob>(b =>
+        {
+            b.Property(j => j.JobType).HasConversion<string>();
+            b.Property(j => j.Status).HasConversion<string>();
+            b.HasOne(j => j.Case).WithMany().HasForeignKey(j => j.CaseId);
+            b.HasIndex(j => j.Status);
+            b.HasIndex(j => j.CaseId);
         });
     }
 

@@ -57,3 +57,20 @@ public enum AuditOutcome
     Rejected,
     Failure,
 }
+
+// One per pipeline step a case needs run - see Pipeline/PipelineJobProcessor.cs. Maps onto
+// CaseStateMachine actions: Extract -> "extract", Screen -> "screen", AiReview -> "mark-ai-reviewed".
+public enum PipelineJobType
+{
+    Extract,
+    Screen,
+    AiReview,
+}
+
+public enum PipelineJobStatus
+{
+    Pending,
+    Processing,
+    Completed,
+    Failed,
+}
