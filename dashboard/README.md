@@ -40,4 +40,5 @@ the Docker container instead.
   fields. Reviews recorded before those fields existed fall back to JSON in `rationale`, and
   plain-text rationales still render.
 - **Document images** need `GET /api/cases/{caseId}/documents/{documentId}/content`, added
-  alongside this dashboard.
+  alongside this dashboard. Each successful read writes a `Document.Viewed` audit event, so
+  opening a case logs one view per document tab shown.

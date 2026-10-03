@@ -92,7 +92,7 @@ export const api = {
   revealField: (u: string, documentId: string, fieldId: string) =>
     request<{ id: string; fieldName: string; fieldValue: string }>(u, "POST", `/api/documents/${documentId}/extracted-fields/${fieldId}/reveal`),
   resetDemo: (u: string) => request<{ casesCreated: number }>(u, "POST", "/api/demo/reset"),
-  // Needs the GET .../documents/{id}/content endpoint. Returns null if the API predates it.
+  // Returns null if the file can't be served (missing on disk, or an API that predates the endpoint).
   documentBlobUrl: async (u: string, caseId: string, docId: string): Promise<string | null> => {
     const res = await fetch(`/api/cases/${caseId}/documents/${docId}/content`, { headers: { "X-Dev-User": u } });
     return res.ok ? URL.createObjectURL(await res.blob()) : null;

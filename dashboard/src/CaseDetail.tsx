@@ -151,7 +151,7 @@ export default function CaseDetail({ me, caseId }: { me: Me; caseId: string }) {
 
       <section className="panel">
         <h2>Audit trail <span className="count">{audit.length}</span></h2>
-        <p className="muted small">Every action on this case, written in the same transaction as the change it records.</p>
+        <p className="muted small">Every action on this case, including who opened each document. Changes are written in the same transaction as their audit event.</p>
         <ol className="audit">
           {[...audit].sort((a, b) => a.timestamp.localeCompare(b.timestamp)).map((e) => (
             <li key={e.id} className={`audit-${e.outcome.toLowerCase()}`}>
@@ -173,15 +173,20 @@ function DocumentImage({ user, caseId, doc }: { user: string; caseId: string; do
   const [url, setUrl] = useState<string | null | undefined>(undefined);
   useEffect(() => {
     if (!doc) return;
-    let revoked: string | null = null;
+    // Switching tabs before the fetch lands must not show the old document or leak its blob URL.
+    let cancelled = false;
+    let blobUrl: string | null = null;
     setUrl(undefined);
-    api.documentBlobUrl(user, caseId, doc.id).then((u) => { revoked = u; setUrl(u); }, () => setUrl(null));
-    return () => { if (revoked) URL.revokeObjectURL(revoked); };
+    api.documentBlobUrl(user, caseId, doc.id).then(
+      (u) => { if (cancelled) { if (u) URL.revokeObjectURL(u); } else { blobUrl = u; setUrl(u); } },
+      () => { if (!cancelled) setUrl(null); },
+    );
+    return () => { cancelled = true; if (blobUrl) URL.revokeObjectURL(blobUrl); };
   }, [user, caseId, doc]);
 
   if (!doc) return <div className="doc-image empty">No documents uploaded.</div>;
   if (url === undefined) return <div className="doc-image empty">Loading image…</div>;
-  if (url === null) return <div className="doc-image empty">The API can't serve this file yet (needs the document content endpoint).</div>;
+  if (url === null) return <div className="doc-image empty">Couldn't load this file from the API. Check the fields against the original.</div>;
   return doc.contentType === "application/pdf"
     ? <iframe className="doc-image" src={url} title={doc.fileName} />
     : <img className="doc-image" src={url} alt={`${doc.documentType} document, ${doc.fileName}`} />;

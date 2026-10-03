@@ -4,6 +4,9 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using CaseAuth.Api.Contracts;
 using CaseAuth.Api.Entities;
+using CaseAuth.Api.Storage;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace CaseAuth.Api.Tests;
 
@@ -155,6 +158,39 @@ public class CaseAuthApiTests(ApiFactory factory) : IClassFixture<ApiFactory>
 
         var otherFirm = await ClientFor("analyst2").GetAsync($"/api/cases/{c.Id}/documents/{document.Id}/content");
         Assert.Equal(HttpStatusCode.NotFound, otherFirm.StatusCode);
+
+        // Only the successful read is audited; the other firm's attempt never reached the file.
+        var auditEvents = await analyst.GetFromJsonAsync<List<AuditEventResponse>>($"/api/cases/{c.Id}/audit-events", JsonOptions);
+        var viewed = Assert.Single(auditEvents!, e => e.Action == "Document.Viewed");
+        Assert.Equal("analyst1", viewed.ActorUsername);
+    }
+
+    [Fact]
+    public async Task DocumentContent_Returns404_WhenTheStoredFileIsMissing()
+    {
+        var analyst = ClientFor("analyst1");
+        var created = await analyst.PostAsJsonAsync("/api/cases", new CreateCaseRequest("Jane Doe", null, null, null));
+        var c = (await created.Content.ReadFromJsonAsync<CaseResponse>(JsonOptions))!;
+
+        var pdfPart = new ByteArrayContent("%PDF-1.4 fixture content"u8.ToArray());
+        pdfPart.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/pdf");
+        using var fileContent = new MultipartFormDataContent
+        {
+            { new StringContent("GovernmentId"), "documentType" },
+            { pdfPart, "file", "id.pdf" },
+        };
+        var uploadResponse = await analyst.PostAsync($"/api/cases/{c.Id}/documents", fileContent);
+        Assert.Equal(HttpStatusCode.Created, uploadResponse.StatusCode);
+        var document = (await uploadResponse.Content.ReadFromJsonAsync<DocumentResponse>(JsonOptions))!;
+
+        var root = factory.Services.GetRequiredService<IOptions<StorageOptions>>().Value.LocalDiskRoot;
+        Directory.Delete(Path.Combine(root, c.FirmId, c.Id.ToString()), recursive: true);
+
+        var content = await analyst.GetAsync($"/api/cases/{c.Id}/documents/{document.Id}/content");
+        Assert.Equal(HttpStatusCode.NotFound, content.StatusCode);
+
+        var auditEvents = await analyst.GetFromJsonAsync<List<AuditEventResponse>>($"/api/cases/{c.Id}/audit-events", JsonOptions);
+        Assert.DoesNotContain(auditEvents!, e => e.Action == "Document.Viewed");
     }
 
     [Fact]
