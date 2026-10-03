@@ -3,6 +3,7 @@ using System;
 using CaseAuth.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CaseAuth.Api.Migrations
 {
     [DbContext(typeof(CaseAuthDbContext))]
-    partial class CaseAuthDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261003080446_AddDeterministicScreening")]
+    partial class AddDeterministicScreening
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.11");
@@ -29,22 +32,11 @@ namespace CaseAuth.Api.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("DraftCaseNote")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("KeyConcerns")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("ModelName")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("ModelVersion")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("NextSteps")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
@@ -54,9 +46,6 @@ namespace CaseAuth.Api.Migrations
 
                     b.Property<string>("Recommendation")
                         .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Summary")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("Version")
@@ -194,30 +183,6 @@ namespace CaseAuth.Api.Migrations
                     b.HasIndex("FirmId");
 
                     b.ToTable("Cases");
-                });
-
-            modelBuilder.Entity("CaseAuth.Api.Entities.CaseNote", b =>
-                {
-                    b.Property<Guid>("CaseId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("BasedOnAiReviewVersion")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Text")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("UpdatedByUserId")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("CaseId");
-
-                    b.ToTable("CaseNotes");
                 });
 
             modelBuilder.Entity("CaseAuth.Api.Entities.Decision", b =>
@@ -391,9 +356,6 @@ namespace CaseAuth.Api.Migrations
                     b.Property<string>("Error")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("IdempotencyKey")
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("JobType")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -410,10 +372,6 @@ namespace CaseAuth.Api.Migrations
                     b.HasIndex("CaseId");
 
                     b.HasIndex("Status");
-
-                    b.HasIndex("CaseId", "IdempotencyKey")
-                        .IsUnique()
-                        .HasFilter("\"IdempotencyKey\" IS NOT NULL");
 
                     b.ToTable("ProcessingJobs");
                 });
@@ -453,17 +411,6 @@ namespace CaseAuth.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("Applicant");
-                });
-
-            modelBuilder.Entity("CaseAuth.Api.Entities.CaseNote", b =>
-                {
-                    b.HasOne("CaseAuth.Api.Entities.Case", "Case")
-                        .WithOne()
-                        .HasForeignKey("CaseAuth.Api.Entities.CaseNote", "CaseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Case");
                 });
 
             modelBuilder.Entity("CaseAuth.Api.Entities.Decision", b =>

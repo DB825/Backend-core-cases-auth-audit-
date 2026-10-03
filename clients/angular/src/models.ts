@@ -7,6 +7,7 @@ export type { AiReviewInputFieldResponse } from './models/ai-review-input-field-
 export type { AiReviewInputFindingResponse } from './models/ai-review-input-finding-response';
 export type { AiReviewInputResponse } from './models/ai-review-input-response';
 export type { AiReviewResponse } from './models/ai-review-response';
+export type { ApplicantKind } from './models/applicant-kind';
 export type { AuditEventResponse } from './models/audit-event-response';
 export type { AuditOutcome } from './models/audit-outcome';
 export type { CaseNoteResponse } from './models/case-note-response';

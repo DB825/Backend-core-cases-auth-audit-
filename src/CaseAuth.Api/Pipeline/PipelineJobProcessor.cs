@@ -96,26 +96,75 @@ public class PipelineJobProcessor(
 
     private async Task ProcessScreenAsync(ProcessingJob job, CancellationToken ct)
     {
-        var results = await screeningService.ScreenAsync(job.CaseId, ct);
-        foreach (var result in results)
+        var result = await screeningService.ScreenAsync(job.CaseId, ct);
+
+        // Keep the findings endpoint on the latest deterministic evaluation after re-screening.
+        var previous = await db.Findings
+            .Where(finding => finding.CaseId == job.CaseId
+                && finding.Source == FindingSource.Deterministic)
+            .ToListAsync(ct);
+        db.Findings.RemoveRange(previous);
+
+        foreach (var finding in result.Findings)
         {
-            var sourceFields = result.SourceFieldIds.Count > 0
-                ? await db.ExtractedFields.Where(f => result.SourceFieldIds.Contains(f.Id)).ToListAsync(ct)
+            var sourceIds = finding.SourceFieldIds.Distinct().ToArray();
+            var sourceFields = sourceIds.Length > 0
+                ? await db.ExtractedFields
+                    .Where(field => sourceIds.Contains(field.Id)
+                        && field.Document!.CaseId == job.CaseId)
+                    .ToListAsync(ct)
                 : [];
+
+            if (sourceFields.Count != sourceIds.Length)
+            {
+                throw new InvalidOperationException(
+                    "Screening evidence must belong to the screened case.");
+            }
 
             db.Findings.Add(new Finding
             {
                 CaseId = job.CaseId,
-                Code = result.Code,
-                Severity = result.Severity,
-                Source = FindingSource.Ai,
-                Message = result.Message,
-                Score = result.Score,
+                Code = finding.Code,
+                Severity = finding.Severity,
+                Source = FindingSource.Deterministic,
+                Message = finding.Message,
+                Score = finding.Score,
+                EvidenceJson = finding.EvidenceJson,
                 SourceFields = sourceFields,
             });
         }
 
-        ApplyTransition(job.Case!, "screen", "Pipeline.Screen.Completed");
+        var metadata = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            result.TotalScore,
+            result.RiskTier,
+            result.RulesetVersion,
+            result.EvaluationDate,
+            result.SnapshotSource,
+            result.SnapshotDate,
+            result.IsComplete,
+            findingCount = result.Findings.Count
+        });
+
+        if (!result.IsComplete)
+        {
+            db.AuditEvents.Add(new AuditEvent
+            {
+                CaseId = job.CaseId,
+                FirmId = job.Case!.FirmId,
+                ActorUserId = SystemActorId,
+                ActorUsername = SystemActorUsername,
+                Action = "Pipeline.Screen.Incomplete",
+                Outcome = AuditOutcome.Failure,
+                CorrelationId = Guid.NewGuid().ToString(),
+                Metadata = metadata
+            });
+            await db.SaveChangesAsync(ct);
+            throw new InvalidOperationException(
+                "Screening could not complete because sanctions data is unavailable or stale.");
+        }
+
+        ApplyTransition(job.Case!, "screen", "Pipeline.Screen.Completed", metadata);
         await db.SaveChangesAsync(ct);
     }
 
@@ -152,7 +201,7 @@ public class PipelineJobProcessor(
         await db.SaveChangesAsync(ct);
     }
 
-    private void ApplyTransition(Case c, string action, string auditAction)
+    private void ApplyTransition(Case c, string action, string auditAction, string? metadata = null)
     {
         var transition = CaseStateMachine.Resolve(action, c.Status, Roles.Analyst);
         c.Status = transition.To;
@@ -166,6 +215,7 @@ public class PipelineJobProcessor(
             Action = auditAction,
             Outcome = AuditOutcome.Success,
             CorrelationId = Guid.NewGuid().ToString(),
+            Metadata = metadata,
         });
     }
 }

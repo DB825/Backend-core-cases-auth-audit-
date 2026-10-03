@@ -32,6 +32,7 @@ public class CaseAuthDbContext(DbContextOptions<CaseAuthDbContext> options) : Db
         modelBuilder.Entity<Applicant>(b =>
         {
             b.HasIndex(a => a.FirmId);
+            b.Property(a => a.Kind).HasConversion<string>();
         });
 
         modelBuilder.Entity<Document>(b =>
@@ -99,6 +100,9 @@ public class CaseAuthDbContext(DbContextOptions<CaseAuthDbContext> options) : Db
             b.HasOne(j => j.Case).WithMany().HasForeignKey(j => j.CaseId);
             b.HasIndex(j => j.Status);
             b.HasIndex(j => j.CaseId);
+            b.HasIndex(j => new { j.CaseId, j.IdempotencyKey })
+                .IsUnique()
+                .HasFilter("\"IdempotencyKey\" IS NOT NULL");
         });
     }
 

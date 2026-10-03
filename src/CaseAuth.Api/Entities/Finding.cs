@@ -24,4 +24,6 @@ public class Finding
     public List<ExtractedField> SourceFields { get; set; } = [];
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public string? EvidenceJson { get; set; }
 }

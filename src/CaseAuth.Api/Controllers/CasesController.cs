@@ -22,6 +22,11 @@ public class CasesController(
     [HttpPost]
     public async Task<ActionResult<CaseResponse>> Create([FromBody] CreateCaseRequest request, CancellationToken ct)
     {
+        if (!Enum.IsDefined(request.ApplicantKind))
+        {
+            throw new ValidationApiException("Invalid applicant kind.");
+        }
+
         var applicant = new Applicant
         {
             FirmId = currentUser.FirmId,
@@ -29,6 +34,7 @@ public class CasesController(
             DateOfBirth = request.ApplicantDateOfBirth,
             Email = request.ApplicantEmail,
             Phone = request.ApplicantPhone,
+            Kind = request.ApplicantKind,
         };
 
         var newCase = new Case

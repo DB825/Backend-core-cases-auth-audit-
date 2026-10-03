@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -11,41 +11,39 @@ namespace CaseAuth.Api.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            // No explicit column types: the same migration runs on SQLite locally and Postgres in
+            // deployment, so each provider picks its own (uuid, timestamp with time zone, ...).
             migrationBuilder.AddColumn<string>(
                 name: "DraftCaseNote",
                 table: "AiReviews",
-                type: "TEXT",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "KeyConcerns",
                 table: "AiReviews",
-                type: "TEXT",
                 nullable: false,
                 defaultValue: "[]");
 
             migrationBuilder.AddColumn<string>(
                 name: "NextSteps",
                 table: "AiReviews",
-                type: "TEXT",
                 nullable: false,
                 defaultValue: "[]");
 
             migrationBuilder.AddColumn<string>(
                 name: "Summary",
                 table: "AiReviews",
-                type: "TEXT",
                 nullable: true);
 
             migrationBuilder.CreateTable(
                 name: "CaseNotes",
                 columns: table => new
                 {
-                    CaseId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Text = table.Column<string>(type: "TEXT", nullable: false),
-                    BasedOnAiReviewVersion = table.Column<int>(type: "INTEGER", nullable: true),
-                    UpdatedByUserId = table.Column<string>(type: "TEXT", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    CaseId = table.Column<Guid>(nullable: false),
+                    Text = table.Column<string>(nullable: false),
+                    BasedOnAiReviewVersion = table.Column<int>(nullable: true),
+                    UpdatedByUserId = table.Column<string>(nullable: false),
+                    UpdatedAt = table.Column<DateTime>(nullable: false)
                 },
                 constraints: table =>
                 {

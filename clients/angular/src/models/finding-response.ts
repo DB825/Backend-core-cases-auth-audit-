@@ -6,6 +6,7 @@ import { FindingSource } from '../models/finding-source';
 export interface FindingResponse {
   code?: string | null;
   createdAt?: string;
+  evidenceJson?: string | null;
   id?: string;
   message?: string | null;
   score?: number | null;
